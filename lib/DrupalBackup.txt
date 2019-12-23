@@ -1,0 +1,116 @@
+This file contains snippits of code used in Drupal pages.  This serves as my personal backup just in case...
+-bob upshaw
+# Copyright (c) 2019 Bob Upshaw.  This software is covered under the Open Source MIT License 
+
+
+------ 18Apr2019
+Content > RSIND Upload:  (edit as plaintext, save as php)
+
+<form action="https://pacmdev.org/points/RSINDUpload.php" id="myForm" method="post"><input id="data" name="value" type="hidden" value="xxx" /></form><?php
+require_once "/usr/home/pacdev/Automation/PMSUpload/lib/UploadSupport.php";
+	$value = US_GenerateValidKey();
+	$value = US_GenerateBuriedKey( $value, true );
+
+
+	
+	echo <<<bup
+		<script>
+		var dataId=document.getElementById( 'data' );
+		dataId.value = "$value";
+		document.getElementById( 'myForm' ).submit();
+		</script>
+bup;
+?>
+
+
+------ 4Apr2019
+Content > OW Results Upload:  (edit as Full HTML)
+
+<h2>Open Water Results Upload</h2><p>(not implemented yet)</p>
+
+
+------ 9Apr2019
+Content > Data Upload:   (edit as Plain Text, save as Full HTML)
+
+<h2>Data Upload</h2><p>Some functionality of the PacMasters web site depends on data supplied by specific managers of those data.&nbsp; If you landed here you may or may not have permission to upload such data to our web site.&nbsp; Here are the categories of data that can be uploaded via the Data Upload functionality:</p><p>&nbsp;</p><ul><li>RSIND - PacMasters membership database in a specific CSV format.&nbsp; Generally the <em>RSIND Manager</em> permission is granted to the PacMasters administrator and her/his appointees only.</li><li>OW Results - Results from PacMasters open water events.&nbsp; The <em>OW Results Manager</em> permission is granted to the Open Water Chairperson and her/his appointees.</li></ul><p>If you need permission to access one of the above areas of this site please <a href="/contact/Webmaster" target="_blank">Contact the Webmaster</a></p>
+
+-------
+
+========================================================================================================================
+To create the drupal pages from scratch (using the above information):
+- Log into https://pacmdev.org/user
+
+Create the necessary roles:
+1. People > Permissions (tab) > Roles (button - far right side)
+2. Scroll to bottom and fill in the form to add a role (if it's not already there):
+	- RSIND Manager
+	- OW Results Manager
+3. People:
+	- find the person who needs one or more of the above roles
+	- edit
+		- check the box for the role(s)
+		- save
+		
+
+1. Content > Add Content
+2. Select "Basic page"
+3. Title:  "Data Upload"
+4. Fill in the Body - see above
+	- be sure to set the Text Format to Plain Text.  Then paste in the above HTML. Then
+		change to Full HTML (ignore the warning - say OK)
+5. Click on "Provide a manu link"
+	- Parent item: "Admin Tasks"
+	- Weight:
+	- Show menu item for specific roles:
+		- authenticated user, administrator, Pool Competition Manager, Open Water Competition Manager, Secretary, 
+			RSIND Manager, OW Results Manager
+6 Save it
+
+Edit the Admin menu:
+1. Click on Structure > Menus 
+2. Click on "list links" for the "Main menu"
+3. Scroll down and find "Data Upload".  Edit it.
+	- (Menu link title should be:  Data Upload)
+	- (Path should be set to something like "node/778")
+	- Click on "Show as expanded"
+	- (Parent link should be: Admin)
+	- (Weight was set above)
+	- (Show menu item for specific roles was set above)
+4. Save
+
+The Admin menu should have a sub-menu "Data Upload"		
+
+
+1. Content > Add Content
+2. Select "Basic page"
+3. Title:  "RSIND Upload"
+4. Fill in the Body - see above
+	- be sure to set the Text Format to Plain Text.  Then paste in the above php code.  Then 
+		change the Text Format to PHP code.  (Ignore the warning)
+5. Click on "Provide a manu link"
+	- Parent item: "Data Upload"
+	- Weight:0
+	- Show menu item for specific roles:
+		- RSIND Manager
+6 Save it
+
+
+
+
+1. Content > Add Content
+2. Select "Basic page"
+3. Title:  "OW Results Upload"
+4. Fill in the Body - see above
+	- be sure to set the Text Format to Plain Text.  Then paste in the above HTML. Then
+		change to Full HTML (ignore the warning - say OK)
+5. Click on "Provide a manu link"
+	- Parent item: "Data Upload"
+	- Weight:1
+	- Show menu item for specific roles:
+		- 
+6 Save it
+
+		
+
+
+		

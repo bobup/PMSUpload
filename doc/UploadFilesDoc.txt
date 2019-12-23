@@ -1,0 +1,86 @@
+Drupal:
+	https://pacmdev.org
+		Admin > Admin Tasks > Data Upload > RSIND Upload
+		
+	This executes the RSINDUpload.php program which then displays the "Upload a New RSIND file" page.
+
+Repository:
+	~/Automation/PMSUpload:
+		Code:
+			RSINDUpload.php (*)
+				- Main user interface.  Serves the "Upload a New RSIND file" page and handles the files dropped
+					onto this page.  
+					(*) In order to be used by the web server it must be located in the web tree, so it must be
+					copied to:
+						public_html/pacmdev.org/points/RSINDUpload.php
+					which, from the network point of view, is this URL:
+						https://pacmdev.org/points/RSINDUpload.php
+			ValidateNewRSINDFile.pl
+				- Executed (by TestInstallRSIND.bash) to validate the uploaded RSIND file.  
+					Errors will prevent the file from being distributed to its final destinations.
+			GetMostRecentVersion.pl
+				- Executed (by TestInstallRSIND.bash) to find the most recent file in a directory.  It is
+					used to find the RSIND file being replaced by the one being uploaded.
+			jqUpload/ (*)
+				- this contains some public code used by RSINDUpload.php to support file dropping.
+					(*) In order to be used by the web server this directory must be located in the web tree, so it must be
+					copied to:
+						public_html/pacmdev.org/points/jqUpload
+					which, from the network point of view, is this URL:
+						https://pacmdev.org/points/jqUpload
+			Logs/
+				This directory keeps a copy of all log files created.
+			scripts/
+				TestInstallRSIND.bash
+					- exec'ed by RSINDUpload.php to do the following:
+						: use ValidateNewRSINDFile.pl to validate the uploaded file
+						: if no errors then distribute the uploaded file to its final destinations.
+				GetMostRecentVersion.pl
+					- used by TestInstallRSIND.bash to determine the most recent version of the installed RSIND file.
+				
+					
+		UploadedFiles:
+			RSIND/
+				- uploaded files are uploaded to this location prior to validation and distribution
+					to its final destinations.  If the files contain no errors (thus are distributed
+					as necessary) they are left here so they can't be uploaded again.
+		lib:
+			DrupalBackup.txt  
+				- A copy of the content of the 3 drupal pages.
+			UploadSupport.php
+				- Encryption/decryption support
+		doc:
+			various documents
+
+
+Execution tree:
+	- /usr/home/pacdev/public_html/pacmdev.org/sites/default/files/comp/points/RSINDUpload.php
+		(*) NOTE:  this file must be stored in the website tree.
+	- /usr/home/pacdev/Automation/Upload/Code/ValidateNewRSINDFile.pl
+	- /usr/home/pacdev/public_html/pacmdev.org/sites/default/files/comp/points/jqUpload/
+		NOTE:  this directory must be stored in the website tree
+	PHP Librarys
+		/usr/home/pacdev/Automation/Upload/lib/UploadSupport.php
+	bash scripts:
+		/usr/home/pacdev/Automation/Upload/Code/scripts/TestInstallRSIND.bash
+
+Drupal Content:
+	Log in and view the Content screen.  The following Basic pages are used for uploading files:
+		Data Upload - explains the other two
+		RSIND Upload - invoked if 'Admin > Admin Tasks > Data Upload > RSIND Upload' selected
+		OW Results Upload - Invoked if 'Admin > Admin Tasks > Data Upload > OW Results' selected
+
+All files uploaded are stored here:
+	/usr/home/pacdev/Automation/Upload/UploadedFiles/
+	In particular, all RSIND files are stored here:
+		/usr/home/pacdev/Automation/Upload/UploadedFiles/RSIND
+	and, if validation is OK, are distributed to its final destination: the AGSOTY and Open Water working directories:
+		AGSOTY:
+			this directory depends on the season.  For example, for the 2019 season:
+			/usr/home/pacdev/Automation/PMSTopTen/SeasonData/Season-2019/PMSSwimmerData/
+		Open Water:
+			/usr/home/pacdev/Automation/PMSOWPoints/SourceData/PMSSwimmerData
+
+Perl:
+	~/Automation/PMSTopTen/Code/ValidateNewRSINDFile.pl - uses other perl modules.h
+>		/usr/home/pacdev/Automation/Upload/Code/ValidateNewRSINDFile.pl
