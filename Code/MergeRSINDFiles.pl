@@ -44,7 +44,7 @@
 
 
 my $debug = 1;
-my $debugSwimmerId = "03WMW";
+my $debugSwimmerId = "xxxxxxxx";
 
 
 

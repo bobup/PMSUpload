@@ -29,7 +29,8 @@ Repository:
 					which, from the network point of view, is this URL:
 						https://pacmdev.org/points/jqUpload
 			Logs/
-				This directory keeps a copy of all log files created.
+				This directory keeps a copy of all log files created.  Currently only ValidateNewRSINDFile.pl
+				produces a log file.
 			scripts/
 				TestInstallRSIND.bash
 					- exec'ed by RSINDUpload.php to do the following:
@@ -54,15 +55,15 @@ Repository:
 
 
 Execution tree:
-	- /usr/home/pacdev/public_html/pacmdev.org/sites/default/files/comp/points/RSINDUpload.php
+$	- /usr/home/pacdev/public_html/pacmdev.org/sites/default/files/comp/points/RSINDUpload.php
 		(*) NOTE:  this file must be stored in the website tree.
-	- /usr/home/pacdev/Automation/Upload/Code/ValidateNewRSINDFile.pl
-	- /usr/home/pacdev/public_html/pacmdev.org/sites/default/files/comp/points/jqUpload/
+$	- /usr/home/pacdev/public_html/pacmdev.org/sites/default/files/comp/points/jqUpload/
 		NOTE:  this directory must be stored in the website tree
+	- /usr/home/pacdev/Automation/PMSUpload/Code/ValidateNewRSINDFile.pl
 	PHP Librarys
-		/usr/home/pacdev/Automation/Upload/lib/UploadSupport.php
+		/usr/home/pacdev/Automation/PMSUpload/lib/UploadSupport.php
 	bash scripts:
-		/usr/home/pacdev/Automation/Upload/Code/scripts/TestInstallRSIND.bash
+		/usr/home/pacdev/Automation/PMSUpload/Code/scripts/TestInstallRSIND.bash
 
 Drupal Content:
 	Log in and view the Content screen.  The following Basic pages are used for uploading files:
@@ -71,9 +72,9 @@ Drupal Content:
 		OW Results Upload - Invoked if 'Admin > Admin Tasks > Data Upload > OW Results' selected
 
 All files uploaded are stored here:
-	/usr/home/pacdev/Automation/Upload/UploadedFiles/
+	<web directory holding RSINDUpload.php>/UploadedFiles/
 	In particular, all RSIND files are stored here:
-		/usr/home/pacdev/Automation/Upload/UploadedFiles/RSIND
+		<web directory holding RSINDUpload.php>/UploadedFiles/RSIND
 	and, if validation is OK, are distributed to its final destination: the AGSOTY and Open Water working directories:
 		AGSOTY:
 			this directory depends on the season.  For example, for the 2019 season:
@@ -81,6 +82,8 @@ All files uploaded are stored here:
 		Open Water:
 			/usr/home/pacdev/Automation/PMSOWPoints/SourceData/PMSSwimmerData
 
+
+What does the following mean?  The two files of the same name are slightly different.  Are they supposed to be?  If so, why?  If not then why do we have two copies?
 Perl:
 	~/Automation/PMSTopTen/Code/ValidateNewRSINDFile.pl - uses other perl modules.h
->		/usr/home/pacdev/Automation/Upload/Code/ValidateNewRSINDFile.pl
+>		/usr/home/pacdev/Automation/PMSUpload/Code/ValidateNewRSINDFile.pl

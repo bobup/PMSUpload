@@ -1,30 +1,39 @@
 <?php
-$debug = 1;		// set to 0 to turn off debugging.  >0 logs stuff to the console and other places
+$debug = 0;		// set to 0 to turn off debugging.  >0 logs stuff to the console and other places
 
+if( $debug ) {
+	error_log( "Entered RSINDUpload.php\n" );
+}
 /*
 ** RSINDUpload.php - upload a file and store it for use on our server.
 **
 ** When this file is requested we'll first look to see if there is any FILES data.  If there
 ** is NOT then that means it was probably requested this way:
-**		https://pacificmasters.org/whatever/blah/blah/Upload.php
+**		https://HostingPacmastersServer.org/whatever/blah/blah/RSINDUpload.php
 ** i.e. by a human via a browser.  In that case we display a drop area into which the
 ** user drops a file.  When that happens then this file is requested AGAIN, but this time
 ** there will be POSTed data.  That data will include the file name the user dropped
-** in the drop area and the contents of the file.  In this case this program will store
-** the file.
+** in the drop area and the contents of the file.  In this case this program will attempt to store
+** the file in an archive directory and also all directories that need it (depends on the TestInstallRSIND.bash
+** script.)
 */
 
 // Copyright (c) 2019 Bob Upshaw.  This software is covered under the Open Source MIT License
 
-require_once "/usr/home/pacdev/Automation/Upload/lib/UploadSupport.php";
+
+require_once "/usr/home/pacdev/Automation/PMSUpload/lib/UploadSupport.php";
 
 // initialization...
 $yearBeingProcessed = date("Y");		// the year in which we are running
 $previousYear = $yearBeingProcessed-1;	// the year prior to this year
 
 // We will put ALL uploaded files into this directory:
-$destinationDir = "UploadedFiles/RSIND/";
+$destinationDirPartial = "UploadedFiles/RSIND/";
 // Note:  the above directory is relative to the location of this script in the webserver tree.
+$destinationDir = realpath( $destinationDirPartial ) . "/";
+if( $debug ) {
+	error_log( "Upload destination (archive) directory is '$destinationDir'\n" );
+}
 
 $aborted = false;		// set to true if we aborted the upload
 
@@ -60,6 +69,10 @@ if( !empty( $_POST ) ) {
 			// got in!
 			InvalidRequest( $value, $expectedKey, $passedKey );
 			exit;
+		} else {
+			if( $debug ) {
+				error_log( "This is a valid request\n" );
+			}
 		}
 	} elseif( !empty( $email ) ) {
 		$to = $_POST{'to'};
@@ -68,7 +81,7 @@ if( !empty( $_POST ) ) {
 			'Reply-To: PAC Webmaster <webmaster@pacificmasters.org>' . "\r\n" .
 			'X-Mailer: PHP/' . phpversion();
 		mail( $to, $subject, $email, $headers  );
-		//error_log( "send an email to '$to' re '$subject'" );
+		error_log( "send an email to '$to' re '$subject'" );
 		exit;
 	}
 	
@@ -187,16 +200,16 @@ if( !empty( $_POST ) ) {
 					}
 					if( obj != "JSON Failed" ) {
 						var status = obj.status;
-						var msg = ExtractMsg( obj.msg );
+						var msg2 = ExtractMsg( obj.msg );
 						var hidden = ExtractHiddenMsg( obj.msg );
 						var drop = ExtractDropMsg( obj.msg );
 						if( status == "error" ) {
-							startMsg = "Upload of " + fileName + " FAILED!  " + msg;
+							startMsg = "Upload of " + fileName + " FAILED!  " + msg2;
 							fullMsg = "\n<p onclick=\"DropMsg('" + nextIdStr + "\')\" style='color:red'>" +
 								startMsg;
 							fullMsg += "</p>\n";
 						} else {
-							startMsg = "Upload of " + fileName + " SUCCESSFUL!  " + msg;
+							startMsg = "Upload of " + fileName + " SUCCESSFUL!  " + msg2;
 							fullMsg = "<p onclick=\"DropMsg('" + nextIdStr + "\')\" style='color:black'>" +
 								startMsg;
 							fullMsg += "</p>\n";
@@ -398,18 +411,27 @@ if( !empty( $_POST ) ) {
 	// The user has dropped a file to be uploaded.
 	////////////////////////////////////////////////////////////////////////////////////////////////
 
+	$originalFileName = $_FILES['files']['name'][0];
+	// convert the file name to replace whitespace with underscore and remove brackets, braces, and parens:
+	$convertedFileName = preg_replace( "/\s/", "_", $originalFileName );
+	$convertedFileName = preg_replace( "/[\(\)]/", "", $convertedFileName );
+	$convertedFileName = preg_replace( "/[\{\}]/", "", $convertedFileName );
+	$convertedFileName = preg_replace( "/[\[\]]/", "", $convertedFileName );
+	
 	if( $debug ) {
 		error_log( "got files:");
 		error_log( "get is: " . var_export( $_GET, true ) );
 		error_log( "post is: " . var_export( $_POST, true ) );
 		error_log( "files is: " . var_export( $_FILES, true ) );
+		error_log( "originalFileName='$originalFileName', convertedFileName='$convertedFileName'");
 	}
 	if( $_FILES['files']['error'][0] === UPLOAD_ERR_OK ) {
 		//uploading successfully done
 		// First make sure it's a file type that we're expecting:
-		$extension = pathinfo($_FILES['files']['name'][0], PATHINFO_EXTENSION);
+		$extension = pathinfo($originalFileName, PATHINFO_EXTENSION);
 		if(!in_array(strtolower($extension), $allowed)){
-			SetError( "The file " . $_FILES['files']['name'][0] . " has an invalid extension - upload aborted!" );
+			SetError( "The file $originalFileName (aka '$convertedFileName')  has an invalid extension " .
+					 "- upload aborted!" );
 			exit;
 		}
 		// Next, move the uploaded file from the temp location to the location we really want to use:
@@ -419,27 +441,34 @@ if( !empty( $_POST ) ) {
 			SetError( $message );
 			exit;
 		}
+
 		// But, before we move it make sure it won't over-write an existing file.  We don't allow that.
-		$message = FileAlreadyExists( $destinationDir, $_FILES['files']['name'][0] );
+		$message = FileAlreadyExists( $destinationDir, $convertedFileName );
 		if( $message != "" ) {
 			// file already exists
 			SetError( $message );
 			exit;
 		}
-		if(move_uploaded_file($_FILES['files']['tmp_name'][0], $destinationDir.$_FILES['files']['name'][0])){
+
+		if(move_uploaded_file($_FILES['files']['tmp_name'][0], $destinationDir.$convertedFileName)) {
 			// We've got the uploaded file.  Do some simple validation before we decide whether or not
 			// we'll keep this file:
-			list( $arrOfLines, $status ) = ValidateRSINDFile( $destinationDir, $_FILES['files']['name'][0] );
+			list( $arrOfLines, $status ) = ValidateRSINDFile( $destinationDir, $convertedFileName );
+			array_push( $arrOfLines, "(exec status: $status )" );
 			$count = count( $arrOfLines );
 			if( $status == 1 ) {
 				// the RSIND file has a problem - move it out of the way to allow another attempt
-				$message = ArchiveRSINDFile( $destinationDir, $_FILES['files']['name'][0] );
+				$message = ArchiveRSINDFile( $destinationDir, $convertedFileName );
 				$arrOfLines[$count] = $message;
 				SetError( $arrOfLines );
 				exit;
 			} elseif( $status == 2 ) {
 				// the RSIND file already existed in at least one destination, but copied to others where
 				// it didn't exist:
+				SetError( $arrOfLines );
+				exit;
+			} elseif( $status != 0 ) {
+				// something went wrong with the exec
 				SetError( $arrOfLines );
 				exit;
 			} else {
@@ -479,15 +508,18 @@ exit;
  */
 function GeneratePageHead() {
 	global $debug;
+	if( $debug ) {
+		error_log( "inside GeneratePageHead" );
+	}
 	?>
 	<!DOCTYPE html>
 	<html lang="en" class="no-js">
 	<head>
 		<meta charset="utf-8">
 		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-		<script src="/usr/home/pacdev/Automation/Upload/Code/jqUpload/assets/js/jquery.ui.widget.js"></script>
-		<script src="/usr/home/pacdev/Automation/Upload/Code/jqUpload/assets/js/jquery.iframe-transport.js"></script>
-		<script src="/usr/home/pacdev/Automation/Upload/Code/jqUpload/assets/js/jquery.fileupload.js"></script>
+		<script src="jqUpload/assets/js/jquery.ui.widget.js"></script>
+		<script src="jqUpload/assets/js/jquery.iframe-transport.js"></script>
+		<script src="jqUpload/assets/js/jquery.fileupload.js"></script>
 
 	<?php
 	if( $debug ) {
@@ -496,12 +528,6 @@ function GeneratePageHead() {
 		echo "<title>Upload a New RSIND File</title>\n";
 	}
 } // end of GeneratePageHead()
-	
-/*
-		<script src="jqUpload/assets/js/jquery.ui.widget.js"></script>
-		<script src="jqUpload/assets/js/jquery.iframe-transport.js"></script>
-		<script src="jqUpload/assets/js/jquery.fileupload.js"></script>
-*/
 	
 	
 
@@ -687,7 +713,7 @@ function CreateDirIfNecessary( $dir ) {
 
 
 
-// 		$message = FileAlreadyExists( $destinationDir, $_FILES['files']['name'][0] );
+// 		$message = FileAlreadyExists( $destinationDir, $convertedFileName );
 /*
  * FileAlreadyExists - see if the passed file already exists
  *
@@ -726,6 +752,7 @@ function FileAlreadyExists( $destinationDir, $fileName ) {
  */
 function ValidateRSINDFile( $destinationDir, $fileName ) {
 	global $debug;
+	global $yearBeingProcessed;
 	$message = array();
 	$status = 0;  // assume all ok
 	$fullFileName = "$destinationDir/$fileName";	// may be partial path relative to CWD
@@ -746,23 +773,19 @@ function ValidateRSINDFile( $destinationDir, $fileName ) {
 			}
 		} else {
 			$status = 1;
-			$message[0] = "Internal error - unable to read from the file just uploaded - upload aborted!";
+			$message[0] = "Internal error - unable to read from the file just uploaded ($fullFileName) - upload aborted!";
 		}
 	} else {
 		$status = 1;
-		$message[0] = "Internal error - unable to open the file just uploaded - upload aborted!";
+		$message[0] = "Internal error - unable to open the file just uploaded ($fullFileName) - upload aborted!";
 	}
 	
 	if( $status == 0 ) {
-if( $debug ) {
-	error_log( "status is 0");
-}
-error_log( "status is still 0");
-		//$message = shell_exec( "/usr/home/pacdev/Automation/scripts/TestInstallRSIND.bash $fileName 2019 2>&1" );
-		exec( "/usr/home/pacdev/Automation/scripts/TestInstallRSIND.bash $fileName 2019 2>&1",
-						$message, $status );
+		exec( "/usr/home/pacdev/Automation/PMSUpload/Code/scripts/TestInstallRSIND.bash " .
+			"$destinationDir '$fileName' $yearBeingProcessed 2>&1", $message, $status );
+
 		if( $debug ) {
-			error_log( " shell_exec done, exitStatus=$status");
+			error_log( "exec done for the year $yearBeingProcessed, exitStatus=$status");
 			error_log( "line 0: '$message[0]'");
 			error_log( "line 1: '$message[1]'");
 			error_log( "line 2: '$message[2]'");
@@ -775,6 +798,23 @@ error_log( "status is still 0");
 
 
 // 				ArchiveRSINDFile( $destinationDir, $_FILES['files']['name'][0] );
+/*
+ * ArchiveRSINDFile - rename the archived RSIND file to something that will allow us to re-upload the same file.
+ *
+ * PASSED:
+ *	$destinationDir - the directory containing the file
+ *	$fileName - the simple file name of the file to be renamed.
+ *
+ * RETURNED:
+ *	$status - an error string if we have a problem, or an empty string if all is OK.
+ *
+ * Notes:
+ *	Normally an uploaded RSIND file is never allowed to be uploaded again, but if there was an error
+ *	with that file that prevented it from being uploaded successfully to any of the appropriate application
+ * 	directories (as per the TestInstallRSIND.bash script) then we want to "move" this uploaded file out of the
+ *	way so the user can try again.  We do this by renaming it with a ".bad" extension.  If that file already
+ *	exists we delete it and then create another.
+ */
 function ArchiveRSINDFile( $destinationDir, $fileName ) {
 	$status = "";
 	$fullFileName = "$destinationDir/$fileName";	// may be partial path relative to CWD

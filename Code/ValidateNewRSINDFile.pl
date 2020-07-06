@@ -147,7 +147,8 @@ my $logFileName = $generatedDirName . "ValidateNewRSINDFileLog-$yearBeingProcess
 # open the log file so we can log errors and debugging info:
 if( my $tmp = PMSLogging::InitLogging( $logFileName )) { die $tmp; }
 print "Log File: $logFileName\n";
-PMSLogging::PrintLog( "", "", "Log file created on $generationTimeDate; Year being analyzed: $yearBeingProcessed" );
+PMSLogging::PrintLog( "", "", "Log file created by $appProgName on $generationTimeDate; " .
+	"Year being analyzed: $yearBeingProcessed" );
 
 ###
 ### Analyze the RSIND file
