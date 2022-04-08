@@ -169,4 +169,89 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
 } // end of US_KeysMatch()
 
 
+// 		list( $isValidRequest, $expectedUserName ) = US_ValidateUserName( $UserName );
+/*
+ * US_ValidateUserName - see if the passed "user name" is good enough to let this user
+ *	upload a file.
+ *
+ * PASSED:
+ *	$userName - a string of the form "xxxxZZ", where 'xxxx' is a name we recognized, and
+ *		'ZZ' is the day of the month (01 - 31)
+ *
+ * RETURNED:
+ *	$isValidRequest - true if the passed userName is "valid", false otherwise
+ *	$fullName - the full name of the user that ATTEMPTED TO log in if we can figure it out.
+ *		Otherwise it's an empty string.
+ *	$userName - the user name passed to this routine, obfuscated.
+ *
+ * NOTES:
+ *	This is a simple hack used to give us a little protection from someone trying to upload 
+ *	bogus files. No longer depends on Drupal. Bummer.
+ *
+ */
+ function US_ValidateUserName ( $userName ) {
+ 	$result = false;
+ 	$returnedFullName = "";
+	$now = new DateTime( "now", new DateTimeZone( "America/Los_Angeles" ) );
+	$day = $now->format( 'd' );		// 01 -> 31
+	
+	$validNames = array (
+		"Chris Ottati" => "ChriS",
+		"Bob Upshaw" => "BobUp"
+	);
+	
+	preg_match( '/(^.*)(..$)/', $userName, $matches );
+	// At this point $matches[1] is the user's supplied login name, and $matches[2] is
+	// the 2 digits representing the day of the month supplied by the user.
+	if( !is_numeric( $matches[2] ) ) {
+		// this is wrong already, but look for a common mistake and see if we can guess
+		// the name of the user trying to authenticate:
+		$matches[1] = $userName;
+	}
+	
+	//error_log( "userName='$userName', day='$day', $matches[1], $matches[2]");
+	$validUserName = "";
+	$validFullName = "";
+	
+	// see if we have a valid user name
+	foreach( $validNames as $arrayFullName => $arrayUserName ) {
+		if( $matches[1] == $arrayUserName ) {
+			$validUserName = $arrayUserName;
+			$validFullName = $arrayFullName;
+			break;
+		}
+	}
+
+	if( $validUserName != "" ) {
+		$returnedFullName = $validFullName;
+		if( $day == $matches[2] ) {
+			// we have a valid login
+			$result = true;
+		}
+	}
+	
+	$obUserName = US_Obfuscate( $userName );
+	return array( $result, $returnedFullName, $obUserName );
+ } // end of US_ValidateUserName()
+
+
+function US_Obfuscate( $str ) {
+	$lastIndex = strlen($str) - 1;
+	
+	for( $i = 0; $i <= $lastIndex; $i++ ) {
+		$ordOfChar = ord( $str[$i] );
+		if( $i % 2 ) {
+			$ordOfChar++;
+		} else {
+			$ordOfChar--;
+		}
+		$str[$i] = chr( $ordOfChar );
+	}
+	return $str;
+
+} // end of US_Obfuscate()
+
+
+
+
 ?>

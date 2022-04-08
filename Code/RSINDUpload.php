@@ -27,8 +27,17 @@ require_once "/usr/home/pacdev/Automation/PMSUpload/lib/UploadSupport.php";
 $yearBeingProcessed = date("Y");		// the year in which we are running
 $previousYear = $yearBeingProcessed-1;	// the year prior to this year
 
+// $emailRecipients is the recipient of all emails sent by this program:
+$emailRecipients = "uploads@pacificmasters.org";
+$emailRecipients = "bobup@acm.org";
+
+// If we get far enough along with this process where we have a good idea of who the user is that
+// is trying to upload a file we will remember their full name here:
+$UsersFullName = "(?)";		// full name of valid UserName (if valid)
+
+
 // We will put ALL uploaded files into this directory:
-$destinationDirPartial = "UploadedFiles/RSIND/";
+$destinationDirPartial = "../UploadedFiles/RSIND/";
 // Note:  the above directory is relative to the location of this script in the webserver tree.
 $destinationDir = realpath( $destinationDirPartial ) . "/";
 if( $debug ) {
@@ -57,10 +66,11 @@ if( !empty( $_POST ) ) {
 	// a new RSIND file.
 	$value = $_POST{'value'};
 	$email = $_POST{'emailAck'};
+	$UserName = $_POST{'UserName'};
 	if( $debug ) {
 		error_log( "got a post:");
 		error_log( "post is: " . var_export( $_POST, true ) );
-		error_log( "value is: $value, email=$email" );
+		error_log( "value is: '$value', email='$email', UserName='$UserName'" );
 	}
 	if( !empty( $value ) ) {
 		list( $isValidRequest, $expectedKey, $passedKey ) = ValidateKey( $value );
@@ -77,12 +87,27 @@ if( !empty( $_POST ) ) {
 	} elseif( !empty( $email ) ) {
 		$to = $_POST{'to'};
 		$subject = $_POST{'subject'};
-		$headers = 'From: RSIND Upload <uploads@pacificmasters.org>' . "\r\n" .
-			'Reply-To: PAC Webmaster <webmaster@pacificmasters.org>' . "\r\n" .
-			'X-Mailer: PHP/' . phpversion();
-		mail( $to, $subject, $email, $headers  );
+		SendEmail( $to, $subject, $email );
 		error_log( "send an email to '$to' re '$subject'" );
 		exit;
+	} elseif( !empty( $UserName ) ) {
+		if( $debug ) {
+			error_log( "got a User Name: '$UserName'");
+		}
+		list( $isValidRequest, $fullName, $obUserName ) = US_ValidateUserName( $UserName );
+		if( $fullName != "" ) {
+			$UsersFullName = $fullName;
+		}
+		if( !$isValidRequest ) {
+			// Invalid access - blow them off with a bogus error message so they don't realize they almost
+			// got in!
+			InvalidRequest( $obUserName, "", "" );
+			exit;
+		} else {
+			if( $debug ) {
+				error_log( "This is a valid request\n" );
+			}
+		}
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,7 +205,7 @@ if( !empty( $_POST ) ) {
 					var fileName = data.files[0].name;
 					var result = data.result;
 					// result looks something like this:   {"status":"error", "msg":"$err"}
-					if( debug ) console.log( "result: '" + result + "'" );
+					if( debug ) console.log( "fileName: '" + fileName + "', result: '" + result + "'" );
 					var obj = "JSON Failed";
 					var startMsg = "";
 					var fullMsg = "";
@@ -371,8 +396,9 @@ if( !empty( $_POST ) ) {
 			// send email
 			drop = drop.replace( /<br>/g, "\n" );
 			msg = startMsg + "\n" + drop + "\n\n" + hidden;
-			$.post( myURL, {"to" : "uploads@pacificmasters.org", "subject" : "RSIND file uploaded",
-				   "emailAck" : msg}, function( data ) {
+			$.post( myURL, {"to" : <?php echo "'" . $emailRecipients . "'"; ?>, 
+				"subject" : "RSIND file uploaded by <?php echo "'" . $UsersFullName . "'"; ?> ",
+				"emailAck" : msg}, function( data ) {
 			});
 			
 		} // end of UpdateScreenWithStatus();
@@ -574,21 +600,38 @@ function ValidateKey( $value ) {
  */
 function InvalidRequest( $value, $expectedKey, $passedKey ) {
 	global $debug;
+	global $emailRecipients;
+	global $UsersFullName;
+	$encrypted = US_GenerateBuriedKey( "$value.$expectedKey.$passedKey.", false );
 	GeneratePageHead();
 	?>
 	</head>
 	<body>
 	<h1 align="center">404:  Page Not Found</h1>
+	<!-- Last updated 12/8/2019 , 0:-1 -->
+	<!-- <p hidden> (Error code <?php echo $encrypted; ?> ) -->
+	<p> (Error code <?php echo $encrypted; ?> )
 	</body>
 	</html>
 
 	<?php
+	SendEmail( $emailRecipients, "Invalid Request", "Invalid attempt to authenticate an Upload - $UsersFullName\n" .
+		"Error code: '$encrypted'\n" .
+		"(Last updated 12/8/2019 , 0:-1)" );	
 	if( $debug ) {
 		error_log( __FILE__ . ": InvalidRequest(): value='$value', expectedKey='" .
 				  "$expectedKey', passedKey='$passedKey'" );
 	}
 } // end of InvalidRequest()
 
+
+
+function SendEmail( $to, $subject, $email ) {
+	$headers = 'From: RSIND Upload <uploads@pacificmasters.org>' . "\r\n" .
+		'Reply-To: PAC Webmaster <webmaster@pacificmasters.org>' . "\r\n" .
+		'X-Mailer: PHP/' . phpversion();
+	mail( $to, $subject, $email, $headers  );
+} // end of SendEmail()
 
 /*
  * SetError - Generate the error return if the FILE sent to our script failed to be uploaded.

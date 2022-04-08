@@ -180,6 +180,10 @@ print "numRows=$numRowsInSpreadsheet, numCols=$numColumnsInSpreadsheet\n" if( $d
 # pass through the sheet looking at each row:
 my $rowNum;
 my $rowRef = {};
+# we may need to know the year being processed deep into date conversion routines if the
+# year part of a date contains only 2 digits:
+PMSStruct::GetMacrosRef()->{"YearBeingProcessed"} = $yearBeingProcessed;
+
 for( $rowNum = 2; $rowNum <= $numRowsInSpreadsheet; $rowNum++ ) {
 	if( ($rowNum % 1000) == 0 ) {
 		print "...working on row $rowNum...\n";
