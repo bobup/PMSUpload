@@ -1,7 +1,9 @@
 #!/bin/bash
 #
-# install.bash - make sure the PMSUpload tree is consistent with https://pacmdev.org/points/
+# install.bash - make sure the PMSUpload tree is consistent with https://pacmdev.org/points/Update
 #       aka ~/public_html/pacmdev.org/points/
+# 	This script DOES NOT copy or move files. If the files in https://pacmdev.org/points/Update are
+#	not up to date you'll have to copy them manually.
 #
 # This script is executed with no arguments:
 #
@@ -24,7 +26,7 @@ CODE_DIR=`pwd -P`
 FULL_RSINDUPLOAD_FILE_NAME=$CODE_DIR/RSINDUpload.php
 
 # full path name of RSINDUpload.php in https://pacmdev.org/points/
-cd ../../../public_html/pacmdev.org/points/ 2>&1 >/dev/null
+cd ../../../public_html/pacmdev.org/points/Upload/ 2>&1 >/dev/null
 INSTALL_DIR=`pwd -P`
 popd 2>&1 >/dev/null
 INSTALLED_RSINDUpload=$INSTALL_DIR/RSINDUpload.php
@@ -37,6 +39,22 @@ if [ $diff_RSINDUPLOAD != 0 ] ; then
     1>&2 echo "diff \"$FULL_RSINDUPLOAD_FILE_NAME\" \"$INSTALLED_RSINDUpload\""
     EXIT_STATUS=1
 fi
+
+# full path name of Upload.html in PMSUpload:
+FULL_UPLOAD_HTML_FILE_NAME=$SCRIPT_DIR/Upload.html
+
+# full path name of Upload.html in https://pacmdev.org/points/
+INSTALLED_UPLOAD_HTML=$INSTALL_DIR/Upload.html
+
+# is FULL_UPLOAD_HTML_FILE_NAME the same as the copy we have in https://pacmdev.org/points/ ?
+diff -q $FULL_UPLOAD_HTML_FILE_NAME $INSTALLED_UPLOAD_HTML 2>&1 >/dev/null
+diff_UPLOAD_HTML=$?
+if [ $diff_UPLOAD_HTML != 0 ] ; then
+    1>&2 echo "$FULL_UPLOAD_HTML_FILE_NAME is different than INSTALLED_UPLOAD_HTML.  Try this:"
+    1>&2 echo "diff \"$FULL_UPLOAD_HTML_FILE_NAME\" \"$INSTALLED_UPLOAD_HTML\""
+    EXIT_STATUS=1
+fi
+
 
 # full path name of the jqUpload directory in PMSUpload/:
 FULL_jqUpload_FILE_NAME=$CODE_DIR/jqUpload
