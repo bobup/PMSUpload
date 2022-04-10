@@ -108,6 +108,10 @@ if( !empty( $_POST ) ) {
 				error_log( "This is a valid request\n" );
 			}
 		}
+	} else {
+		# if we got here then there was a post but nothing was posted
+		InvalidRequest( "(no value)", "", "(no passed data)" );
+		exit;
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////
