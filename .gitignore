@@ -12,3 +12,5 @@
 *.swp
 # ignore the UploadedFiles directory
 UploadedFiles/
+# ignore the property file
+properties.txt

@@ -12,6 +12,12 @@ define( "ENCRYPT_KEY", "%C*F)J@NcRfUjXn2" );		// NOTE:
 	// For now it's "constant" but we can add greater security if necessary by changing the key daily or
 	// more often.
 
+// here is our "secret" property file containing valid login names:
+define( "SECRETPROPS", "/usr/home/pacdev/Automation/PMSUpload/lib/properties.txt" );
+// here is where we store valid "login" names:
+$validNames = array();
+
+
 /*
  * US_GenerateValidKey -  Generate a key that a Drupal side request will include when invoking
  * 		a file upload utility.
@@ -195,19 +201,13 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
 	$now = new DateTime( "now", new DateTimeZone( "America/Los_Angeles" ) );
 	$day = $now->format( 'd' );		// 01 -> 31
 	
-	$validNames = array (
-		"Chris Ottati" => "ChriS",
-		"Bob Upshaw" => "BobUp"
-	);
+	if( empty( $validNames ) ) {
+		US_GetValidNames( $validNames );
+	}
 	
 	preg_match( '/(^.*)(..$)/', $userName, $matches );
 	// At this point $matches[1] is the user's supplied login name, and $matches[2] is
 	// the 2 digits representing the day of the month supplied by the user.
-	if( !is_numeric( $matches[2] ) ) {
-		// this is wrong already, but look for a common mistake and see if we can guess
-		// the name of the user trying to authenticate:
-		$matches[1] = $userName;
-	}
 	
 	//error_log( "userName='$userName', day='$day', $matches[1], $matches[2]");
 	$validUserName = "";
@@ -222,6 +222,19 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
 		}
 	}
 
+	if( $validUserName == "" ) {
+		// nope - not valid. But check for common error so we can report their name
+		$matches[1] = $userName;
+		// see if we have a valid user name without the trailing digits
+		foreach( $validNames as $arrayFullName => $arrayUserName ) {
+			if( $matches[1] == $arrayUserName ) {
+				$validUserName = $arrayUserName;
+				$validFullName = $arrayFullName;
+				break;
+			}
+		}
+	}
+	
 	if( $validUserName != "" ) {
 		$returnedFullName = $validFullName;
 		if( $day == $matches[2] ) {
@@ -252,6 +265,30 @@ function US_Obfuscate( $str ) {
 } // end of US_Obfuscate()
 
 
+
+// 		US_GetValidNames( $validNames );
+function US_GetValidNames( &$validNames ) {
+	$props = fopen( SECRETPROPS, "r" ) or die ("Unable to open " . SECRETPROPS . " - ABORT!" );
+	while( ($line = fgets( $props )) !== false ) {
+		// remove comments
+		$line = preg_replace( "/#.*$/", "", $line );
+		// ignore blank or empty lines
+		if( preg_match( "/^\s*$/", $line ) ) next;
+		$matches = array();
+		if( preg_match( "/Name:/", $line ) ) {
+			# found a valid name
+			$line = preg_replace( "/^.*Name:\s*/", "", $line );
+			preg_match( "/^(.*)>/", $line, $matches );
+			$fullName = $matches[1];
+			$fullName = preg_replace( "/\s*$/", "", $fullName );
+			$line = preg_replace( "/^.*>\s*/", "", $line );
+			preg_match( "/^(.*)\s*$/", $line, $matches );
+			$validName = $matches[1];
+			$validNames[$fullName] = $validName;
+		}
+	}
+	error_log( "valid names: " . var_export( $validNames, true ) );
+} // end of US_GetValidNames()
 
 
 ?>

@@ -1,0 +1,9 @@
+# properties-Template.txt - this is a template for the properties.txt file.
+
+Name:  Some ones full name		>  UsersLoginName
+
+
+# Example:  
+#	Name:		Fred Rodgers		>	MisterR
+#
+# In this example, Fred will log in with the name "MisterR" (w/o quotes)
