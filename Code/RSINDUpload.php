@@ -1,6 +1,7 @@
 <?php
 $debug = 0;		// set to 0 to turn off debugging.  >0 logs stuff to the console and other places
 
+
 if( $debug ) {
 	error_log( "Entered RSINDUpload.php\n" );
 }
@@ -29,7 +30,7 @@ $previousYear = $yearBeingProcessed-1;	// the year prior to this year
 
 // $emailRecipients is the recipient of all emails sent by this program:
 $emailRecipients = "uploads@pacificmasters.org";
-$emailRecipients = "bobup@acm.org";
+$emailRecipients = "bobup@acm.org";			// for testing...
 
 // If we get far enough along with this process where we have a good idea of who the user is that
 // is trying to upload a file we will remember their full name here:
@@ -109,8 +110,9 @@ if( !empty( $_POST ) ) {
 			}
 		}
 	} else {
-		# if we got here then there was a post but nothing was posted
-		InvalidRequest( "(no value)", "", "(no passed data)" );
+		# if we got here then there was a post but nothing recognized was posted
+		$hdrs = GetHeaderList();
+		InvalidRequest( "(no value)", "", "(no passed key)", $hdrs );
 		exit;
 	}
 	
@@ -522,7 +524,8 @@ if( !empty( $_POST ) ) {
 // If we got here there was no POST and no FILES data - assume a hack:
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-InvalidRequest( "(no value)", "", "(no passed key)" );
+$hdrs = GetHeaderList();
+InvalidRequest( "(no value)", "", "(no passed data)", $hdrs );
 exit;
 
 
@@ -596,13 +599,14 @@ function ValidateKey( $value ) {
  * 		Likely encrypted.  It is supposed to contain the key.  May be an empty string.
  * 	$expectedKey - the (unencrypted) key we expected to find inside the $value string.
  * 	$passedKey - the actual key we found inside the $value string.  May be an empty string.
+ *	$forEmail - an associative array to be sent with email.
  *
  * NOTES:
  * 	We're actually generating a 404 page so the person who caused this invalid request to be
  * 	made doesn't get a hint as to what they almost did.  The passed values are never shown
  * 	to the user - they just get logged.
  */
-function InvalidRequest( $value, $expectedKey, $passedKey ) {
+function InvalidRequest( $value, $expectedKey, $passedKey, $forEmail = 0 ) {
 	global $debug;
 	global $emailRecipients;
 	global $UsersFullName;
@@ -619,12 +623,20 @@ function InvalidRequest( $value, $expectedKey, $passedKey ) {
 	</html>
 
 	<?php
-	SendEmail( $emailRecipients, "Invalid Request", "Invalid attempt to authenticate an Upload - $UsersFullName\n" .
-		"Error code: '$encrypted'\n" .
-		"(Last updated 12/8/2019 , 0:-1)" );	
+	$msg =  "Invalid attempt to authenticate an Upload - $UsersFullName\n" .
+		"Error code: '$encrypted'\n";
+		
+	if( $forEmail != 0 ) {
+		$msg .= "Client headers:\n";
+    	foreach ($forEmail as $hdrName => $hdrValue) {
+    		$msg .= "$hdrName: '$hdrValue'\n";
+    	}
+	}
+	$msg .= "(Last updated 12/8/2019 , 0:-1)";
+	SendEmail( $emailRecipients, "Invalid Request", $msg );	
 	if( $debug ) {
 		error_log( __FILE__ . ": InvalidRequest(): value='$value', expectedKey='" .
-				  "$expectedKey', passedKey='$passedKey'" );
+				  "$expectedKey', passedKey='$passedKey', msg='$msg'" );
 	}
 } // end of InvalidRequest()
 
@@ -884,5 +896,28 @@ function ArchiveRSINDFile( $destinationDir, $fileName ) {
 	return $status;
 } // end of ArchiveRSINDFile()
 
+
+/*
+ * GetHeaderList - get a list of headers sent along with a client request to us.
+ *
+ */
+function GetHeaderList() {
+    //create an array to put our header info into.
+    $headerList = array();
+    //loop through the $_SERVER superglobals array.
+    foreach ($_SERVER as $name => $value) {
+        //if the name starts with HTTP_, it's a request header.
+        if (preg_match('/^HTTP_/',$name)) {
+            //convert HTTP_HEADER_NAME to the typical "Header-Name" format.
+            //$name = strtr(substr($name,5), '_', ' ');
+            //$name = ucwords(strtolower($name));
+            //$name = strtr($name, ' ', '-');
+            //Add the header to our array.
+            $headerList[$name] = $value;
+        }
+    }
+    //Return the array.
+    return $headerList;
+} // end of GetHeaderList()
 
 ?>
