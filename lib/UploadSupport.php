@@ -1,4 +1,4 @@
-<?php
+
 
 // UploadSupport.php
 
@@ -175,7 +175,7 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
 } // end of US_KeysMatch()
 
 
-// 		list( $isValidRequest, $expectedUserName ) = US_ValidateUserName( $UserName );
+// 		list( $isValidRequest, $expectedUserName ) = US_ValidateUserName( $UserName, $uploadType );
 /*
  * US_ValidateUserName - see if the passed "user name" is good enough to let this user
  *	upload a file.
@@ -183,6 +183,7 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
  * PASSED:
  *	$userName - a string of the form "xxxxZZ", where 'xxxx' is a name we recognized, and
  *		'ZZ' is the day of the month (01 - 31)
+ #	$uploadType - 
  *
  * RETURNED:
  *	$isValidRequest - true if the passed userName is "valid", false otherwise
@@ -195,14 +196,14 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
  *	bogus files. No longer depends on Drupal. Bummer.
  *
  */
- function US_ValidateUserName ( $userName ) {
+ function US_ValidateUserName ( $userName, $uploadType ) {
  	$result = false;
  	$returnedFullName = "";
 	$now = new DateTime( "now", new DateTimeZone( "America/Los_Angeles" ) );
 	$day = $now->format( 'd' );		// 01 -> 31
 	
 	if( empty( $validNames ) ) {
-		US_GetValidNames( $validNames );
+		US_GetValidNames( $validNames, $uploadType );
 	}
 	
 	preg_match( '/(^.*)(..$)/', $userName, $matches );
@@ -266,8 +267,8 @@ function US_Obfuscate( $str ) {
 
 
 
-// 		US_GetValidNames( $validNames );
-function US_GetValidNames( &$validNames ) {
+// 		US_GetValidNames( $validNames, $uploadType );
+function US_GetValidNames( &$validNames, &$uploadType ) {
 	$props = fopen( SECRETPROPS, "r" ) or die ("Unable to open " . SECRETPROPS . " - ABORT!" );
 	while( ($line = fgets( $props )) !== false ) {
 		// remove comments
@@ -292,3 +293,4 @@ function US_GetValidNames( &$validNames ) {
 
 
 ?>
+

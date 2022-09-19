@@ -30,7 +30,7 @@ $previousYear = $yearBeingProcessed-1;	// the year prior to this year
 
 // $emailRecipients is the recipient of all emails sent by this program:
 $emailRecipients = "uploads@pacificmasters.org";
-$emailRecipients = "bobup@acm.org";			// for testing...
+#$emailRecipients = "bobup@acm.org";			// for testing...
 
 // If we get far enough along with this process where we have a good idea of who the user is that
 // is trying to upload a file we will remember their full name here:
@@ -95,7 +95,7 @@ if( !empty( $_POST ) ) {
 		if( $debug ) {
 			error_log( "got a User Name: '$UserName'");
 		}
-		list( $isValidRequest, $fullName, $obUserName ) = US_ValidateUserName( $UserName );
+		list( $isValidRequest, $fullName, $obUserName ) = US_ValidateUserName( $UserName, "RSIND" );
 		if( $fullName != "" ) {
 			$UsersFullName = $fullName;
 		}
