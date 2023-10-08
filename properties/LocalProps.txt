@@ -1,0 +1,30 @@
+# LocalProps.txt - this is a property file used by various Upload php scripts.
+# 	The properties in this file are NOT "secret". Don't put sensitive information
+#	into this file. Such info usually goes in the UploadSupport.php file which is
+#	stored outside the web server file system.
+#
+# The rows in this file are very order-dependent. Here is what each row represents in order:
+#	UploadSupportFullPathName - the full path to the UploadSupport.php file
+#	TestInstallRSINDFullPathName - the full path to the TestInstallRSIND.bash script
+#	PropertiesFullPathName - the full path to the properties.txt file containing login credentials.
+
+
+
+###		UploadSupportFullPathName:
+/usr/home/pacdev/Automation/PMSUpload/Code/lib/UploadSupport.php
+#../PMSUpload/lib/UploadSupport.php
+
+
+###		TestInstallRSINDFullPathName:
+/usr/home/pacdev/Automation/PMSUpload/Code/Scripts/TestInstallRSIND.bash
+# ../PMSUpload/Code/scripts/TestInstallRSIND.bash
+
+
+###		PropertiesFullPathName:
+/usr/home/pacdev/Automation/PMSUpload/properties/properties.txt
+#../PMSUpload/lib/properties.txt
+
+###		OW properties file WITH  year:
+/usr/home/pacdev/Automation/PMSOWPoints/SourceData/{CurrentYear}-properties.txt
+
+

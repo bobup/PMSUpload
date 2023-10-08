@@ -3,13 +3,16 @@
 # TestInstallRSIND.bash - test and then (if OK) install a new RSIND file for use by the appropriate
 #   applications.
 #
-# This script is executed with two required arguments:
+# This script is executed with three required arguments and one optional argument:
 #	$1:  the directory containing the newly uploaded RSIND file
 #   $2:  the (simple) name of the newly uploaded RSIND file
 #   $3:  the year being processed
+#	$4:  (optional) if supplied this tells the script to do everything it would normally do
+#		EXCEPT the actual copy. Useful when debugging.
 #
 # Exit Status:
-#   0 - file uploaded and copied to destination directories correctly.
+#   0 - file uploaded and copied to destination directories correctly, or in the case where $4
+#		is supplied, this means no problems found.
 #   1 - there was a problem and the file was NOT uploaded to any destination directory
 #   2 - the file already existed in at least one of the destination directories so it was not
 #       re-copied.  It was copied to whatever directories didn't already have the file.
@@ -32,8 +35,10 @@ HIDDEN_MESSAGE=
 WARNING_STRINGS=
 
 TEMP_FILE=/tmp/TestInstallRSIND.$$
+LOG_FILE=$TEMP_FILE.LOG
 
 echo >$TEMP_FILE "$0 ran on `date`"
+echo >$LOG_FILE "$0 ran on `date`"
 
 SIMPLE_SCRIPT_NAME=`basename $0`
 # compute the full path name of the directory holding this script.  We'll find
@@ -41,6 +46,7 @@ SIMPLE_SCRIPT_NAME=`basename $0`
 SCRIPT_DIR=$(dirname $0)
 cd $SCRIPT_DIR
 SCRIPT_DIR=`pwd -P`
+echo >>$LOG_FILE "SCRIPT_DIR = '$SCRIPT_DIR'";
 
 # calculate today's date and a few other dates for this year:
 TODAY_MD=$(date +"%m%d")        # today's date in form MMDD, e.g. 0513 for May 13
@@ -85,6 +91,9 @@ fi
     
 }
 
+# if all looks good do we really copy the file to the appropriate destination directories?
+NOCOPY="$4"		# If non-empty we will NOT actually do the copy.
+
 # did we get the RSIND file name and year?
 RSIND_FILE_NAME="$2"        # simple name of newly uploaded RSIND file - we may change it below
 ORIGINAL_RSIND_FILE_NAME=$RSIND_FILE_NAME       # remember the original name in case we need to change it
@@ -121,6 +130,8 @@ NUM_ROWS_IN_NEW_RSIND_FILE=`wc -l <"$FULL_RSIND_FILE_NAME"`
 
 # compute destination AGSOTY directory and size of current RSIND file:
 DESTDIR=$SCRIPT_DIR/../../../PMSTopTen/SeasonData/Season-$YEAR_BEING_PROCESSED/PMSSwimmerData
+echo >>$LOG_FILE "DESTDIR for AGSOTY RSIND file = '$DESTDIR' (NOCOPY=$NOCOPY)";
+
 # remember this directory for clean up later (at the end of this script):
 AGSOTY_THISYEAR_DIRECTORY=$DESTDIR
 FULL_DEST_FILE=$DESTDIR/$RSIND_FILE_NAME
@@ -154,6 +165,8 @@ if [ $TODAY_MD -gt $OCT15_MD ] ; then
         GOT_NEXT_YEARS_RSIND=1
         MERGE_SIMPLE_NAME=MergeRSINDFiles
         MERGE_PROG=$SCRIPT_DIR/../$MERGE_SIMPLE_NAME.pl
+		echo >>$LOG_FILE "MERGE_PROG for RSIND file = '$MERGE_PROG'";
+
         # Since we are constructing a different uploaded RSIND file that is different from the one the user uploaded
         # we are going to change its name:
         RSIND_FILE_NAME=Merged_$RSIND_FILE_NAME
@@ -184,10 +197,12 @@ fi
 VALIDATE_SIMPLE_NAME=ValidateNewRSINDFile
 VALIDATE_PROG=$SCRIPT_DIR/../$VALIDATE_SIMPLE_NAME.pl
 VALIDATE_LOG_DIR=$SCRIPT_DIR/../Logs/
+echo >>$LOG_FILE "VALIDATE_PROG = '$VALIDATE_PROG', VALIDATE_LOG_DIR='$VALIDATE_LOG_DIR'";
+
 mkdir -p $VALIDATE_LOG_DIR
 VALIDATE_LOG=$VALIDATE_LOG_DIR${VALIDATE_SIMPLE_NAME}Log-$YEAR_BEING_PROCESSED.txt
 rm -f $VALIDATE_LOG
-$VALIDATE_PROG "$FULL_RSIND_FILE_NAME" $YEAR_BEING_PROCESSED 2>&1 >$TEMP_FILE
+$VALIDATE_PROG "$FULL_RSIND_FILE_NAME" $YEAR_BEING_PROCESSED 2>&1 >>$TEMP_FILE
 if [ ! -e $VALIDATE_LOG ] ; then
     echo "Unable to execute $VALIDATE_SIMPLE_NAME - RSIND file not installed!"
     echo "(((prog: $VALIDATE_PROG , log: $VALIDATE_LOG, stderr/out: $TEMP_FILE)))"
@@ -224,8 +239,13 @@ if [ -e "$FULL_DEST_FILE" ] ; then
     DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE already exists for AGSOTY - not copied again."
     HIDDEN_MESSAGE="$HIDDEN_MESSAGE; ((('cp $FULL_RSIND_FILE_NAME $DESTDIR' wasn't tried because file already exists))); "
     EXIT_STATUS=2
+elif [ "$NOCOPY" != "" ] ; then		 # unless NOCOPY
+    USER_MESSAGE="$USER_MESSAGE; No actual copy performed for AGSOTY"
+    DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE looks good but, as requested, it was not copied."
+    HIDDEN_MESSAGE="$HIDDEN_MESSAGE; (((The passed NOCOPY was '$NOCOPY'))); "
 else
     # do the copy!
+	echo >>$LOG_FILE "AGSOTY (this year) DESTDIR = '$DESTDIR'";
     if cp "$FULL_RSIND_FILE_NAME" $DESTDIR ; then
         DROP_MESSAGE="$DROP_MESSAGE <br>$RSIND_FILE_NAME ($NUM_ROWS_IN_NEW_RSIND_FILE rows) copied successfully for $YEAR_BEING_PROCESSED AGSOTY"
         if [ $STATUS_GetMostRecentVersion -eq 0 ] ; then
@@ -242,6 +262,9 @@ else
         # have to also copy this AGSOTY file to that year's AGSOTY directory too...
         if [ $TODAY_MD -ge $JUN1_MD ] ; then
             DESTDIR=$SCRIPT_DIR/../../../PMSTopTen/SeasonData/Season-$NEXT_YEAR_TO_BE_PROCESSED/PMSSwimmerData
+			echo >>$LOG_FILE "AGSOTY (next year) DESTDIR = '$DESTDIR'";
+
+
             # remember this directory for clean up later (at the end of this script):
             AGSOTY_NEXTYEAR_DIRECTORY=$DESTDIR
             if [ ! -d "$DESTDIR" ] ; then
@@ -284,6 +307,7 @@ fi
 if [ $TODAY_MD -lt $OCT15_MD ] && [ $GOT_NEXT_YEARS_RSIND == 0 ] ; then
     # compute destination OW directory:
     DESTDIR=$SCRIPT_DIR/../../../PMSOWPoints/SourceData/PMSSwimmerData/
+	echo >>$LOG_FILE "OW DESTDIR = '$DESTDIR'";
     OW_DIRECTORY=$DESTDIR
     FULL_DEST_FILE=$DESTDIR/$RSIND_FILE_NAME
     # get the size of the RSIND file in this directory:
@@ -301,6 +325,10 @@ if [ $TODAY_MD -lt $OCT15_MD ] && [ $GOT_NEXT_YEARS_RSIND == 0 ] ; then
         if [ $EXIT_STATUS = 0 ] ; then
             EXIT_STATUS=2
         fi
+	elif [ "$NOCOPY" != "" ] ; then		 # unless NOCOPY
+		USER_MESSAGE="$USER_MESSAGE; No actual copy performed for OW"
+		DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE looks good but, as requested, it was not copied."
+		HIDDEN_MESSAGE="$HIDDEN_MESSAGE; (((The passed NOCOPY was '$NOCOPY'))); "
     elif cp "$FULL_RSIND_FILE_NAME" $DESTDIR ; then
         DROP_MESSAGE="$DROP_MESSAGE <br>$RSIND_FILE_NAME ($NUM_ROWS_IN_NEW_RSIND_FILE rows) copied successfully for OW"
         if [ $STATUS_GetMostRecentVersion -eq 0 ] ; then

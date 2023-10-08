@@ -1,3 +1,107 @@
+
+jul 22, 2023
+
+points/Upload:
+
+	
+	
+
+info.php - utility page used to tell us our php configuration. Should be protected from
+	prying eyes.
+	Must be placed in the web site.
+
+
+
+
+
+
+
+
+development:
+
+* - files that must be installed into the points/Upload directory
+
+
+./Code:
+	Logs/ 
+	 	? - log RSIND file uploads? why here? So it will be saved in Git? Why?
+	
+*	PostAnUpload.php - this is the handler for all file uploads (RSIND and OW results).
+		Must be placed in the web site.
+
+	MergeRSINDFiles.pl*  - used  when uploading RSIND file near end of year and it
+		needs to be merged with current year's RSIND file.
+	
+	RSINDUpload.php  - ? handler  for RSIND uploads? what about rsind.php?
+	
+	ValidateNewRSINDFile.pl* - validate an uploaded RSIND file
+
+*	OW.php - handler for OW file uploads once the specific event is known
+	Must be placed in the web site.
+
+*	OwStart.php - handler for  OW file uploads prior to choosing the event to be uploaded
+
+*	Rsind.php - handler for RSIND file uploads.
+			Must be placed in the web site.
+
+	scripts/
+
+	./lib:
+		UploadSupport.php  - secret code (mostly) 
+		
+		LocalSupport.php - non secret library routines. 
+			This file is NOT secret thus can be exposed on the  web site.
+
+./html
+*	Upload.html - User interface to the Upload process.
+		Must be placed in the web site.
+
+*	jqUpload/ - Support for drag-n-drop file functionality.
+		Must be placed in the web site.
+
+
+./Code/scripts:
+	GetMostRecentVersion.pl*  - find the most recent file matching a regex in a directory
+		used by: ?
+	
+	TestInstallRSIND.bash*  - test and then install a new RSIND file.
+	
+	
+	install.bash* - help sync dev tree with points/Upload. Doesn't really do anything but
+		compare. no copying.
+
+./doc:
+	Upload.docx  - user manual. out dated.  Still has Drupal.
+	
+	UploadCodeLayout.jpg  
+	UploadCodeLayout.pxm  
+		diagram used in Upload.docx.  out dated.
+		
+	UploadFilesDoc.txt - document directory structures and files.  out  dated.
+
+./properties
+	LocalProps.txt - property file used to point to other property files. allows us to put
+		property files that would otherwise be in our code development area into a local
+		website area. This risks some security in exchange of easy of testing/modification.
+		This file is NOT secret thus can be exposed on the  web site.
+
+	properties-Template.txt  
+	properties.txt
+		- property file containing valid logins. Secret file. Must not be on
+			web server. Pointed to by LocalProps.txt
+
+
+
+================================================================================================
+
+
+
+
+
+
+
+Old stuff  follows: prior  to jul, 2023:
+
 Drupal:
 	https://pacmdev.org
 		Admin > Admin Tasks > Data Upload > RSIND Upload
