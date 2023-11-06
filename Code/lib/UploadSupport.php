@@ -680,7 +680,7 @@ function US_ExpiredKey( $uploadType, $source ) {
 
 	<?php
 	$msg = "Session expired for $UsersFullName (found in $source)";
-	US_SendEmail( $emailRecipients, "PAC Masters", "Invalid Request POSTed", $msg );
+//	US_SendEmail( $emailRecipients, "PAC Masters", "Invalid Request POSTed", $msg );
 	if( DEBUG ) {
 		error_log( __FILE__ . ": US_ExpiredKey(): msg='$msg'" );
 	}
@@ -812,7 +812,7 @@ function US_GeneratePageEnd() {
  */
 function US_SendEmail( $to, $from, $subject, $email ) {
 	$headers = "From: $from Upload <uploads@pacificmasters.org>" . "\r\n" .
-		'Reply-To: PAC Webmaster <webmaster@pacificmasters.org>' . "\r\n" .
+		'Reply-To: $from Upload <uploads@pacificmasters.org>' . "\r\n" .
 		'X-Mailer: PHP/' . phpversion();
 	// if this email isn't going to one of the general "upload" mailboxes then we must be debugging...
 	if( strpos( $to, "upload" ) === false ) {
@@ -834,6 +834,27 @@ function US_SendEmail( $to, $from, $subject, $email ) {
 } // end of US_SendEmail()
 
 
+
+//		$pretag = US_ComputeSavedFilePretag( $data['unique'], $data['cat'], 
+//			preg_replace( "/\s/", "", $data['name'] ) );
+/*
+** US_ComputeSavedFilePretag - Generate the first part of a saved uploaded file name.
+**
+** PASSED:
+**	$unique - intended to be the unique id of the event represented by the file to be saved.
+**	$cat - the categoryof the event
+**	$eventName - the name of the event
+**
+** RETURNED:
+**	$pretag - a string combining the passed parameters that uniquely represents a 
+**		saved uploaded file. It's used to name the uploaded file.
+**
+*/
+function US_ComputeSavedFilePretag( $unique, $cat, $eventName ) {
+		$pretag = $unique . "-" . $cat . "-" . $eventName . "=";
+		return $pretag;
+
+} // end of US_ComputeSavedFilePretag
 
 
 // 		list( $existingFileName, $existingFileDate) = 
@@ -862,14 +883,17 @@ function US_FileExistsWithThisPretag( $pretag, $destinationDirArchive ) {
 	$existingFileName = "";
 	$existingFileDate = "";
 	
+	$pattern = "/^" . $pretag . "(.*$)/";
+
 	foreach( new DirectoryIterator( $destinationDirArchive ) as $fileInfo ) {
 		$fileName = $fileInfo->getFilename();
-		$filePretagExists = preg_match( "/^" . $pretag . "(.*$)/", $fileName, $matches );
+		$filePretagExists = preg_match( $pattern, $fileName, $matches );
 		if( $filePretagExists ) {
 			// we found a file with the passed pretag
 			$existingFileName = $matches[1];
 			$existingFileDate = date( "D, M j, Y e", $fileInfo->getMTime() );
 			break;
+		} else {		
 		}
 	}
 	
@@ -1267,7 +1291,44 @@ function US_GetHeaderList() {
 } // end of US_GetHeaderList()
 
 
+//		$pretag = US_SanatizeRegEx( $pretag );
+/*
+ * US_SanatizeRegEx - convert a string to be used as a regex to escape all special meta
+ *		characters.
+ *
+ * NOTES:  For example, suppose you want to find the string
+ *		This \\ dog looks ^ and sees $ always.
+ *	Notice that this simple string contains regex meta characters which, if used in a 
+ *	pattern matching operation, will be interpretated instead of just used as the characters
+ *	they represent.  To match the above string as part of a regex you want the string
+ *	to look like this:
+ *		This \\\\ dog looks \^ and sees \$ always\.
+ *	That's what this function would return.
+ */
+function US_SanatizeRegEx( $plainString ) {
+	$meta = "\\.^*+?{}[]|()";
+		# NOTE: meta characters are:
+		# - \ (Backslash)
+		# - . (Full stop)
+		# - ^ (Carat)
+		# - * (Asterix)
+		# - + (Plus)
+		# - ? (Question Mark)
+		# - { (Opening curly brace)
+		# - } (Closing curly brace) 
+		# - [ (Opening brace)
+		# - ] (Closing brace)
+		# - | (Pipe)
+		# - ( (Opening parens)
+		# - ) (Closing parens)
 
+	foreach( str_split( $meta ) as $mchar ) {
+		$plainString = str_replace( $mchar, "\\" . $mchar, $plainString );
+	}
+
+	return $plainString;
+
+} // end of US_SanatizeRegEx()
 
 
 

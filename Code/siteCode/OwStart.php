@@ -156,7 +156,7 @@ function ReadAndStoreCalendar( $OWPropsFullPath, array &$OWProps ) {
 */
 function ProcessCalendarLine( $line, array &$OWProps ) {
 	$data = array();
-	if( DEBUG > 90 ) {
+	if( DEBUG > 99 ) {
 		error_log( "owStart.php::ProcessCalendarLine(): entered with line='$line'.\n" );
 	}
 	[$fileName, $cat, $date, $distance, $eventName, $uniqueID, $keyword] = 
@@ -221,9 +221,11 @@ function DrawRaces( array $OWProps, $deleteButton ) {
 	$count = 0;
 	foreach( $OWProps as $data ) {
 		$label = $data['name'] . " (cat " . $data['cat'] . ") held on " . $data['date'];
-		$pretag = $data['unique'] . "-" . $data['cat'] . "-";
+		$pretag = US_ComputeSavedFilePretag( $data['unique'], $data['cat'], 
+			preg_replace( "/\s/", "", $data['name'] ) );
+		$pretag = US_SanatizeRegEx( $pretag );
 		list( $existingFileName, $existingFileDate) = 
-			US_FileExistsWithThisPretag( $pretag, $destinationDirArchive );
+			US_FileExistsWithThisPretag( $pretag, $destinationDirArchive,  );
 		$details = "";
 		if( $existingFileName != "" ) {
 			$details = "&nbsp;&nbsp;&nbsp; $existingFileName was uploaded on $existingFileDate";

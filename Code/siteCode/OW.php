@@ -17,7 +17,7 @@ require_once $localProps[0];		// UploadSupport.php, set DEBUG
 
 $scriptName = "OW.php";
 if( DEBUG ) {
-	error_log( "----> Entered $scriptName, yearBeingProcessed='$yearBeingProcessed', debug='" .
+	error_log( "----> Entered $scriptName, yearBeingProcessed='$yearBeingProcessed', DEBUG='" .
 		DEBUG . "'\n" );
 }
 
@@ -44,12 +44,11 @@ if( $isValidKey > 0 ) {
 	}
 }
 
-
-$logHandle = LS_OpenLogFile();
+$path = realpath( dirname( "__FILE__" ) );
+$logHandle = LS_OpenLogFile( $path );
 $OWProps = $_SESSION['OWProps'];
 $currentDateTimeStr = $_SESSION['currentDateTimeStr'];
 $eventNum = -1;
-
 
 if( DEBUG ) {
 	error_log( "SESSION: uploadType='$uploadType', UserName='" . substr( $UserName, 0, 3 ) . "...', " .
@@ -77,6 +76,16 @@ if( DEBUG ) {
 //$allowed = array('txt', 'csv', 'xlsx','xls');
 $allowed = array('csv');		// this is all we currently accept for OW result files
 
+// If we have a OW result file that we need to test we'll need an area to store some temporary files.
+// We'll define that area here, and the files, too:
+// temporary directory:
+$OWPointsTmpDirName = "/tmp/UploadTmpDir-" . getmypid();
+// temporary file to control our use of GenerateOWResults.pl:
+$OWPointsTmpCalendarEntry = "$OWPointsTmpDirName/UploadTmpFile";
+// temporary file into which we store the STDOUT of GenerateOWResults.pl if/when invoked:
+$OWPointsStdout = "$OWPointsTmpDirName/Stdout";
+// the GenerateOWResults.pl log file:
+$OWPointsLogFileName = $OWPointsTmpDirName . "/" . $yearBeingProcessed . "PacMastersGenerateOWResultsLog.txt";
 
 if( DEBUG > 1 ) {
 	error_log( "OW.php: ready to test FILES");
@@ -140,7 +149,7 @@ if( isset($_FILES['files']) ) {
 		// Next, do a sanity check on the file name to prevent uploading the results for one event as
 		// the results for a different event (e.g. Keller results for Berryessa results)
 		$eventNum = $_SESSION['eventNum'];
-		$OWProps = $_SESSION['OWProps'];
+		//$OWProps = $_SESSION['OWProps'];
 		list( $keywordFromFileEntry, $distFromFileName, $catFromFileName ) = 
 			GetKeysFromFileName( $convertedFileName, $OWProps, $eventNum );
 			
@@ -193,7 +202,7 @@ if( isset($_FILES['files']) ) {
 			// We've got the uploaded file.  Do some simple validation before we decide whether or not
 			// we'll keep this file:
 			list( $arrOfLines, $status ) = ValidateOWFile( $destinationDirTmp, $convertedFileName, $OWProps, $eventNum );
-			array_push( $arrOfLines, "(Number of errors found: $status )" );
+			array_push( $arrOfLines, "  (Number of errors found: $status )" );
 			$count = count( $arrOfLines );
 			if( $status > 0 ) {
 				SetError( $arrOfLines );
@@ -260,7 +269,6 @@ elseif( !empty( $_POST ) ) {
 	fwrite( $logHandle, var_export( $_POST, true ) );
 	fwrite( $logHandle, "\n" );
 
-
 	// now process the various POSTed values:
 	if( isset( $_POST['eventNum']) ) {
 		$eventNum = $_POST['eventNum'];
@@ -286,13 +294,25 @@ elseif( !empty( $_POST ) ) {
 	$uploadFixedResultButton = $_POST['uploadFixedResultButton'];
 	$deleteButton = $_POST['deleteButton'];
 	if( isset( $deleteButton ) ) {
-		// the user has requested to delete the previous uploaded file		
-		$filename = $destinationDirArchive . $event['unique'] . "-" . $event['cat'] . "-" . $deleteButton;
+		// the user has requested to delete the previous uploaded file. The value of $deleteButton
+		// is the USER'S NAME of the file, not our converted name. Convert it to the form that we
+		// want:
+		// convert the file name to replace whitespace with underscore and remove brackets, braces, and parens:
+		$convertedFileName = preg_replace( "/\s/", "_", $deleteButton );
+		$convertedFileName = preg_replace( "/[\(\)]/", "", $convertedFileName );
+		$convertedFileName = preg_replace( "/[\{\}]/", "", $convertedFileName );
+		$convertedFileName = preg_replace( "/[\[\]]/", "", $convertedFileName );
+		$pretag = US_ComputeSavedFilePretag( $event['unique'], $event['cat'], 
+			preg_replace( "/\s/", "", $event['name'] ) );
+		$filename = $destinationDirArchive . $pretag . $convertedFileName;
 		if( file_exists( $filename ) ) {
-			unlink( $filename );
+			if( ! unlink( $filename ) ) {
+				error_log( "OW.php:: ERROR: DELETE requested but unlink failed: '$filename'" );
+			}
+			
 		} else {
 			// huh? this is odd...
-			error_log( "ERROR: DELETE requested but file doesn't exist: '$filename'" );
+			error_log( "OW.php:: ERROR: DELETE requested but file doesn't exist: '$filename'" );
 		}
 //		$_SESSION['deleteButton'] = $deleteButton;
 		include "OwStart.php";
@@ -404,7 +424,7 @@ function GetKeysFromFileName( $convertedFileName, $OWProps, $eventNum ) {
 	$catFromFileName = "";
 	
 	// try to figure out what distance this file represents:
-	$pattern = "/(\d\.?\d*)\s*mi/";
+	$pattern = "/((\d\.\d*)|(\d)|(\.\d))\s*mi/";
 	$match = preg_match( $pattern, $lowerFileName, $matches );
 	if( $match === 1 ) {
 		// we've found a distance in miles in the file name
@@ -578,7 +598,11 @@ function ValidateDroppedFileName( $eventNum, $OWProps, $convertedFileName, $keyw
 function ArchiveUploadedFile( $sourceDir, $fileName, $destinationDir, $OWProps, $eventNum ) {
 	$status = "";
 	$fullFileName = $sourceDir . $fileName;	
-	$fullNewName = $destinationDir . $OWProps[$eventNum]['unique'] . "-" . $OWProps[$eventNum]['cat'] . "-" . $fileName;
+//	$fullNewName = $destinationDir . $OWProps[$eventNum]['unique'] . "-" . $OWProps[$eventNum]['cat'] . "-" . $fileName;
+	$pretag = US_ComputeSavedFilePretag( $OWProps[$eventNum]['unique'], $OWProps[$eventNum]['cat'], 
+		preg_replace( "/\s/", "", $OWProps[$eventNum]['name'] ) );
+	$fullNewName = $destinationDir . $pretag . $fileName;
+	
 	// we'll move '$fileName' to '$fullNewName', but first we'll make sure there isn't
 	// already a '$fullNewName'.
 	if( file_exists( $fullNewName ) ) {
@@ -597,33 +621,39 @@ function ArchiveUploadedFile( $sourceDir, $fileName, $destinationDir, $OWProps, 
 } // end of ArchiveUploadedFile()
 
 
+// 			list( $arrOfLines, $status ) = ValidateOWFile( $destinationDirTmp, $convertedFileName, 
+//				$OWProps, $eventNum );
 
 /*
  * ValidateOWFile - Once we've uploaded a file we'll validate it here
  *
  * PASSED:
  * 	$destinationDir - the directory containing the newly uploaded file. Ends with a '/'
- * 	$fileName - the file
+ * 	$fileName - the name of the file to validate
+ *	$OWProps - an array containing the list of events of which we're interested and info 
+ *		about each event.
+ *	$eventNum - an index into $OWProps of the event in which we're interested
  *
  * RETURNED:
  * 	$message - a message (array of strings) to be sent back to the browser. An empty array 
- *		means nothing to say (i.e. usually no error.)
+ *		means nothing to say (i.e. usually no error.) Each string is NOT terminated with a newline.
  * 	$status - 0 if OK, non-zero if not.  Specifically, a negative value if we had some "internal" error
- *		that likely isn't due to bad data (e.g. exec failed, couldn't open tmp file, etc.)  A positive
- *		value EITHER represents the number of FATAL ERRORs discovered by processing the single OW file
+ *		that likely isn't due to bad data (e.g. exec failed, couldn't open tmp file, etc.)
+ *		or it's the status code returned by GenerateOWResults.pl (set to a negative value)  A positive
+ *		value represents the number of FATAL ERRORs discovered by processing the single OW file.
  *		or it's the status code returned by GenerateOWResults.pl .
  *
  */
 function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	global $localProps;
 	global $yearBeingProcessed;
+	global $OWPointsTmpDirName;
+	global $OWPointsTmpCalendarEntry;
+	global $OWPointsStdout;
 	$message = array();
 	$status = 0;  // assume all ok
 	$dirResult = false;
 	$numBytesWritten = 0;
-	$tmpDirName = "/tmp/UploadTmpDir-" . getmypid();
-	$tmpFileName = "$tmpDirName/UploadTmpFile";
-	$tmpStdout = "$tmpDirName/Stdout";
 	$fullFileName = $destinationDir . $fileName;	// may be partial path relative to CWD
 	$fp = fopen( $fullFileName, "r" );
 	if( ! $fp ) {
@@ -632,30 +662,30 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	} else {
 		fclose( $fp );
 		// if our temp directory already exists then remove it, then re-create it.
-		if( is_dir( $tmpDirName ) ) {
-			foreach( scandir( $tmpDirName ) as $file ) {
+		if( is_dir( $OWPointsTmpDirName ) ) {
+			foreach( scandir( $OWPointsTmpDirName ) as $file ) {
 				if( $file == '.' || $file == '..' ) {
 					continue;
 				} else {
 					// assume a simple file!
-					unlink( "$tmpDirName/$file" );
+					unlink( "$OWPointsTmpDirName/$file" );
 				}
 			}
-			rmdir( $tmpDirName );
+			rmdir( $OWPointsTmpDirName );
 		}
-		$dirResult = mkdir( $tmpDirName, 0770 );
+		$dirResult = mkdir( $OWPointsTmpDirName, 0770 );
 		if( ! $dirResult ) {
 			$status = -1;
-			$message[0] = "Internal error - unable to create the temp directory '$tmpDirName' - upload aborted!";
+			$message[0] = "Internal error - unable to create the temp directory '$OWPointsTmpDirName' - upload aborted!";
 		}
 	}
 	if( $dirResult ) {
 		// we have a temp directory - use it for exec'ing GeneratOWResults.pl
 		// construct an input line for GeneratOWResults.pl running in single file mode:
-		$fp = fopen( $tmpFileName, "w" );
+		$fp = fopen( $OWPointsTmpCalendarEntry, "w" );
 		if( !$fp ) {
 			$status = -1;
-			$message[0] = "Internal error - unable to open $tmpFileName - upload aborted!";
+			$message[0] = "Internal error - unable to open $OWPointsTmpCalendarEntry - upload aborted!";
 		}
 	}
 	if( $fp ) {
@@ -667,25 +697,32 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 		$numBytesWritten = fwrite( $fp, $fullFileName . "  ->  $cat  ->  $date  ->  $distance  ->  $name  ->  $unique\n" );
 		if( ! $numBytesWritten ) {
 			$status = -1;
-			$message[0] = "Internal error - writing to $tmpFileName failed - upload aborted!";
+			$message[0] = "Internal error - writing to $OWPointsTmpCalendarEntry failed - upload aborted!";
 		}
 		fclose( $fp );
 	}
 	if( $numBytesWritten ) {
 		// execute the OW processing script in 'single file' mode:
-		$cmd = "/usr/bin/perl 2>&1 /usr/home/pacdev/Automation/PMSOWPoints/Code/GenerateOWResults.pl 2022 " .
-			"-sf < $tmpFileName -g$tmpDirName";
+//xxxxxx
+	//	$cmd = "/usr/bin/perl 2>&1 /usr/home/pacdev/Automation/PMSOWPoints/Code/GenerateOWResults.pl " .
+	//		"$yearBeingProcessed -sf < $OWPointsTmpCalendarEntry -g$OWPointsTmpDirName -lLogFile";
+		$cmd = "/usr/bin/perl 2>&1 /usr/home/pacdev/Automation/PMSOWPoints/Code/GenerateOWResults.pl " .
+			"$yearBeingProcessed -sf < $OWPointsTmpCalendarEntry -g$OWPointsTmpDirName";
 		if( DEBUG > 2 ) {
 			error_log( "ValidateOWFile(): cmd for exec(): '$cmd'");
 		}
 		$execResult = exec( $cmd, $message, $status );
+		if( $status > 0 ) {
+			# the exec status will be set to a negative value.
+			$status = -$status;
+		}
 
 		if( $execResult ) {
 			if( DEBUG > 2 ) {
 				error_log( "ValidateOWFile(): result from successful exec(): '$execResult'");
 			}
 			// discard the STDOUT of the exec...
-			$fp = fopen( $tmpStdout, "w" );
+			$fp = fopen( $OWPointsStdout, "w" );
 			foreach( $message as $line ) {
 				fwrite( $fp, $line . "\n" );
 			}
@@ -702,7 +739,7 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	// if our processing completed successfully then we'll now look to see if there
 	// were any errors detected:
 	if( ! $status ) {
-		$status = AnalyzeLogFile( $tmpDirName, $yearBeingProcessed, $message );
+		$status = AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, $message );
 	} else {
 		// something went wrong with what we exec'ed...
 		$message[0] = "Internal Error - Failed to process the OW result file.";
@@ -726,13 +763,13 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 
 
 
-// 		$status = AnalyzeLogFile( $tmpDirName, $yearBeingProcessed );
+// 		$status = AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed );
 /*
  * AnalyzeLogFile - analyze the passed log file produced by GenerateOWResults.pl when processing a single
  *		OW result file.
  *
  * PASSED:
- *	$tmpDirName - the directory holding the log file
+ *	$OWPointsTmpDirName - the directory holding the log file
  *	$yearBeingProcessed - the year being processed. Used to construct the name of the log file.
  *	&$message - a reference to an array that will hold errors found, or empty array if no errors.
  *
@@ -745,47 +782,117 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
  *				preceeding FATAL ERROR line.
  *	
  */
-function AnalyzeLogFile( $tmpDirName, $yearBeingProcessed, &$message ) {
-	$fullLogFileName = $tmpDirName . "/" . $yearBeingProcessed . "PacMastersGenerateOWResultsLog.txt";
+function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
+	global $OWPointsLogFileName;
 	$status = 0;
 	$message = array();
 	$lastLine = "";
 
-	$fp = fopen( $fullLogFileName, "r" );
+	$fp = fopen( $OWPointsLogFileName, "r" );
 	if( ! $fp ) {
 		$status = 1;
 		$message[0] = "Internal error - unable to open the analysis log file just uploaded - upload aborted!";
-		error_log( "Internal error: AnalyzeLogFile(): unable to open log file '$fullLogFileName' - upload aborted!" );
+		error_log( "Internal error: AnalyzeLogFile(): unable to open log file '$OWPointsLogFileName' - upload aborted!" );
 	} else {
-		# process the log file
+		// process the log file
 		while( ($line = fgets( $fp )) !== false ) {
 			$lastLine = $line;		// this may be our last line...
-			$match = preg_match( '/^\! FATAL ERROR/', $line);
+			$foundIssue = 0;		// set to 1 if we found an error or warning that we want to display
+			
+			// look for FATAL ERROR
+			$pattern = '/^\! FATAL ERROR/';
+			$match = preg_match( $pattern, $line);
 			if( $match === false ) {
-				$status = 1;
+				$status++;
 				$message[0] = "Internal error - failed pattern match - upload aborted!";
-				error_log( "Internal error: AnalyzeLogFile(): failed pattern match in log file '$fullLogFileName' - upload aborted!" );
+				error_log( "Internal error: AnalyzeLogFile(): failed pattern match ($pattern) in log file '$OWPointsLogFileName' - upload aborted!" );
 				break;
 			} else if( $match ) {
-				# we found a FATAL ERROR in the log file. This line, and all following up to (but not including) a line that 
-				# begins with '! END FATAL ERROR' will be considered part of the fatal error message.
-				$line = trim( $line );		# remove leading and trailing whitespace (including newline)
+				// we found a FATAL ERROR in the log file. This line, and all following up to (but not including) a line that 
+				// begins with '! END FATAL ERROR' will be considered part of the fatal error message.
+				$foundIssue = 1;
+				$line = trim( $line );		// remove leading and trailing whitespace (including newline)
 				$message[] = $line;
 				$status++;
 				while( ($lineFE = fgets( $fp )) !== false ) {
 					$lastLine = $lineFE;		// this may be our last line...
-					$match = preg_match( '/^\! END FATAL ERROR/', $lineFE);
+					$match = preg_match( '/-- END FATAL ERROR/', $lineFE);
 					if( $match ) {
-						# end of FATAL ERROR lines
+						// end of FATAL ERROR lines
 						break;
 					} else {
-						# we've got another FATAL ERROR line
-						$lineFE = rtrim( $lineFE );		# remove trailing whitespace (including newline)
-						$message[] = $lineFE;		# make this line part of the FATAL ERROR
+						// we've got another FATAL ERROR line
+						$lineFE = rtrim( $lineFE );		// remove trailing whitespace (including newline)
+						$message[] = $lineFE;		// make this line part of the FATAL ERROR
 					}
 				}
-			} # end of ...else if( $match )...
-		} # end of ...while( ($line....
+			} // end of ...else if( $match )...
+			// done looking for a FATAL ERROR
+			
+			if( $foundIssue == 0 ) {
+				// no FATAL ERROR with this line - any other issue?
+				// look for simple error...
+				$pattern = '/^\! ERROR/';
+				$match = preg_match( $pattern, $line);
+				if( $match === false ) {
+					$status++;
+					$message[0] = "Internal error - failed pattern match - upload aborted!";
+					error_log( "Internal error: AnalyzeLogFile(): failed pattern match ($pattern) in log file '$OWPointsLogFileName' - upload aborted!" );
+					break;
+				} else if( $match ) {
+					// we found an ERROR...
+					$foundIssue = 1;
+					$line = trim( $line );		// remove leading and trailing whitespace (including newline)
+					$message[] = $line;
+					$status++;
+					while( ($lineFE = fgets( $fp )) !== false ) {
+						$lastLine = $lineFE;		// this may be our last line...
+						$match = preg_match( '/-- END ERROR/', $lineFE);
+						if( $match ) {
+							// end of ERROR lines
+							break;
+						} else {
+							// we've got another ERROR line
+							$lineFE = rtrim( $lineFE );		// remove trailing whitespace (including newline)
+							$message[] = $lineFE;		// make this line part of the ERROR
+						}
+					}
+			
+				} // end of ...else if( $match )...
+				// done looking for a simple  ERROR
+			}
+			
+			if( ($foundIssue == 0) && (0) ) {
+				// no ERROR - how about a WARNING?
+				$pattern = '/^\! WARNING/';
+				$match = preg_match( $pattern, $line);
+				if( $match === false ) {
+					$status++;
+					$message[0] = "Internal error - failed pattern match - upload aborted!";
+					error_log( "Internal error: AnalyzeLogFile(): failed pattern match ($pattern) in log file '$OWPointsLogFileName' - upload aborted!" );
+					break;
+				} else if( $match ) {
+					// we found a WARNING...
+					$foundIssue = 1;
+					while( ($lineFE = fgets( $fp )) !== false ) {
+						$lastLine = $lineFE;		// this may be our last line...
+						$match = preg_match( '/-- END WARNING/', $lineFE);
+						if( $match ) {
+							// end of WARNING lines
+							break;
+						} else {
+							// we've got another WARNING line
+							$lineFE = rtrim( $lineFE );		// remove trailing whitespace (including newline)
+							$message[] = $lineFE;		// make this line part of the ERROR
+						}
+					}
+			
+				} // end of ...else if( $match )...
+				// done looking for a simple  ERROR
+				
+			}
+
+		} // end of ...while( ($line....
 		if( !feof( $fp ) ) {
 			array_push( $message, "Internal error: AnalyzeLogFile(): Unexpected EOF when analyzing the uploaded file - upload aborted!" );
 			$status++;
@@ -798,7 +905,11 @@ function AnalyzeLogFile( $tmpDirName, $yearBeingProcessed, &$message ) {
 			$status++;
 		}
 		fclose( $fp );
-	} # end of processing the log file
+	} // end of processing the log file
+	if( DEBUG ) {
+		error_log( "AnalyzeLogFile(): return status='$status'" );
+	}
+	
 	return $status;
 } // end of AnalyzeLogFile()
 
@@ -934,7 +1045,9 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
 	$emailRecipients = OW_EMAIL_RECIPIENTS;
 	$replacement = "";
 	if( $eventNum >= 0 ) {
-		$pretag = $OWProps[$eventNum]['unique'] . "-" . $OWProps[$eventNum]['cat'] . "-";
+		$pretag = US_ComputeSavedFilePretag( $OWProps[$eventNum]['unique'], $OWProps[$eventNum]['cat'], 
+			preg_replace( "/\s/", "", $OWProps[$eventNum]['name'] ) );
+		$pretag = US_SanatizeRegEx( $pretag );
 		list( $existingFileName, $existingFileDate) = 
 			US_FileExistsWithThisPretag( $pretag, $destinationDirArchive );
 		if( $existingFileName != "" ) {
@@ -942,6 +1055,13 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
 				"Waiting for the replacement results file to be dropped here.";
 		}
 	}
+
+	// If we are going to give the results of analyzing an OW result file then we are going to
+	// also give the user a pointer to the GenerateOWResults.pl input, log, and STDOUT files.
+	global $OWPointsTmpDirName;
+	global $OWPointsTmpCalendarEntry;
+	global $OWPointsStdout;
+	global $OWPointsLogFileName;
 
 	?>
 	<style>
@@ -1214,6 +1334,13 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 	// The upload is finished so turn off upload prompting...
 	document.getElementById( "UploadForm" ).style.display="none";		// turn off upload form
 	
+	// get pointers to some interesting files that might be useful:
+	var logFileFullPath = "<?php echo $OWPointsLogFileName; ?>";
+	var stdoutFullPath = "<?php echo $OWPointsStdout; ?>";
+	var inputFullPath = "<?php echo $OWPointsTmpCalendarEntry; ?>";
+
+
+
 	// Now what we show the user depends on the result of the previous Upload action:
 	// did the file drop get any errors? We're going to generate custom messages to the
 	// user here telling them the options they have.
@@ -1221,12 +1348,30 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 		// YES, we found errors...
 		document.getElementById( "uploadFailure" ).style.display="block";	// turn on failure form
 		document.getElementById( "uploadSuccess" ).style.display="none";	// turn off success form
+		document.getElementById( "idUploadFailed").innerHTML = "Log: '" + logFileFullPath + "', STDIN: '" +
+			inputFullPath + "', STDOUT: '" + stdoutFullPath + "'";
 		document.getElementById( "FailureStatus_area" ).innerHTML = 
 			document.getElementById( "FailureStatus_area" ).innerHTML + fullMsg;
+		let emailMsg = fullMsg.replaceAll( /<p/g, "\nXX" );
+		emailMsg = emailMsg.replaceAll( /<br/g, "XX" );
+		emailMsg = emailMsg.replaceAll( /<div/g, "ZZ  " );
+		emailMsg = emailMsg.replaceAll( /&nbsp;/g, "" );
+		emailMsg = emailMsg.replaceAll( /XX[^>]*>/g, "\n" );
+		emailMsg = emailMsg.replaceAll( /ZZ[^>]*>/g, "\n        " );
+		emailMsg = emailMsg.replaceAll( /<\/p>/g, "" );
+		emailMsg = emailMsg.replaceAll( /<\/div>/g, "" );
+		emailMsg += "\n\n\n";
+		
+		emailMsg = encodeURIComponent( emailMsg );
+		document.getElementById( "FailureStatus_email" ).innerHTML = 
+			'<a href="mailto:ow_uploads@pacificmasters.org?subject=Problems with OW results upload.&body=' + emailMsg + '">' +
+			"Send email to 'ow_uploads@pacificmasters.org'</a>";
 	} else {
 		// upload successful!
 		document.getElementById( "uploadSuccess" ).style.display="block";	// turn on success form
 		document.getElementById( "uploadFailure" ).style.display="none";	// turn off failure form
+		document.getElementById( "idUploadSuccess").innerHTML = "Log: '" + logFileFullPath + "', STDIN: '" +
+			inputFullPath + "', STDOUT: '" + stdoutFullPath + "'";
 		document.getElementById( "deleteButton" ).value=filename;
 		document.getElementById( "SuccessStatus-text" ).innerHTML = 
 			document.getElementById( "SuccessStatus-text" ).innerHTML + fullMsg;
@@ -1271,6 +1416,7 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 				$date = $event['date'];
 				$cat = $event['cat'];
 				$uploadDetails = $name . " (category $cat) held on " . $date;
+	error_log( "uploadDetails=$uploadDetails, eventNum=$eventNum");
 			?>
 			
 			  <div id="UploadAFilePrompt">
@@ -1307,9 +1453,9 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 	<form id="uploadFailure" method="post" action="OW.php" enctype="multipart/form-data"
 		formData='{"script":"true"}' style='display:none'>
 		<div class="drop_zone">
-			<h1 align="center">Upload Failed!</h1>
-		  
-			<?php $event=$OWProps[$eventNum];
+			<h1 align="center" class="UploadHeader" onclick='DropMsg( "idUploadFailed" )'>Upload Failed!</h1>
+			<div id="idUploadFailed" class="status_area" style="color:black; display:none"></div>
+ 			<?php $event=$OWProps[$eventNum];
 				$name = $event['name'];
 				$date = $event['date'];
 				$cat = $event['cat'];
@@ -1338,10 +1484,10 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 				</ul
 				</p>
 			</div>
-			<p class="upload_msg" style='text-align:left; font-size:20px; color:black'> If you do not understand or how to fix the error(s) below please COPY this page (Windows: Control-A, Mac: Cmd-A) and paste
-			the copy into an email and email it to <a href="mailto:owadmin@pacmdev.org?subject=Problems with OW results upload.">
-			OwAdmin@pacmdev.org</a>.
+			<p class="upload_msg" style='text-align:left; font-size:20px; color:black'> If you do not understand or how to fix the error(s) 
+			below please click on this email link: <span id="FailureStatus_email"></span>.
 			</p>
+
 			<div id="FailureStatus_area" class="status_area" style='color:black' >
 				<h3 id="FailureStatus-text" align="center" style='font-size:20px; text-decoration: underline;color:red' >Upload Status</h3>
 			</div>
@@ -1354,8 +1500,9 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 	<form id="uploadSuccess" method="post" action="OW.php" enctype="multipart/form-data"
 		formData='{"script":"true"}' style='display:none'>
 		<div class="drop_zone">
-			<h1 align="center">Upload Success!</h1>
-			  
+			<h1 align="center" class="UploadHeader" onclick='DropMsg( "idUploadSuccess" )'>Upload Success!</h1>
+			<div id="idUploadSuccess" class="status_area" style="color:black; display:none"></div>
+
 			<?php $event=$OWProps[$eventNum];
 				$name = $event['name'];
 				$date = $event['date'];
