@@ -38,6 +38,7 @@ mkdir -p "$DEST_DIR"
 # full path name of siteCode/:
 pushd ../siteCode 2>&1 >/dev/null
 CODE_DIR=`pwd -P`
+echo "Installing to $DEST_DIR"
 
 for fn in `ls -a` ; do
 	if [ "$fn" != '.' ] && [ "$fn" != '..' ] ; then

@@ -1,8 +1,12 @@
 <?php
-// owStart.php - this page handles a submit from the main Upload page when the requested
-// upload is for an OW result file. This page will be used to show the user what OW race 
-// results are available to submit and ask the user what result file they want to upload.
-
+/*
+** owStart.php - this page handles a submit from the main Upload page when the requested
+** upload is for an OW result file. This page will be used to show the user what OW race 
+** results are available to submit and ask the user what result file they want to upload.
+**
+** NOTE: For DEBUGGING see lib/UploadSupport.php and read about DEBUG*
+**
+*/
 session_start();
 error_reporting( E_ERROR & E_PARSE & E_NOTICE & E_CORE_ERROR & E_DEPRECATED & E_COMPILE_ERROR &
 	E_RECOVERABLE_ERROR & E_ALL );
@@ -107,12 +111,56 @@ function ReadAndStoreCalendar( $OWPropsFullPath, array &$OWProps ) {
 	$state = WAITING_FOR_CALENDAR;
 	while( ($line = fgets( $props )) !== false ) {
 		if( DEBUG > 99 ) {
-			error_log( "owStart.php::ReadAndStoreCalendar(): line='$line'\n" );
+			error_log( "owStart.php::ReadAndStoreCalendar(): Initial line='$line'\n" );
 		}
+		// remove trailing whitespace:
+		$line = rtrim( $line );
 		// remove comments
-		$line = preg_replace( "/#.*$/", "", $line );
+		$line = preg_replace( "/\s*#.*$/", "", $line );
+		// remove leading space
+		$line = preg_replace( "/^\s+/", "", $line );
+		// remove trailing space
+		$line = preg_replace( "/\s+$/", "", $line );
+		if( DEBUG > 99 ) {
+			error_log( "owStart.php::ReadAndStoreCalendar(): Clean Initial line='$line'\n" );
+		}
+		// handle a continuation line:
+		while( preg_match( "/\\\s*$/", $line ) ) {
+			if( DEBUG > 99 ) {
+				error_log( "owStart.php::ReadAndStoreCalendar(): the line '$line' has a continuation\n" );
+			}
+			// this line continues with the next line
+			// replace (optional) whitespace followed by continuation char with a single space
+			$line = preg_replace( "/\s*\\\s*$/", " ", $line );
+			// now read the continuation line
+			if( ($nextLine = fgets( $props )) !== false ) {
+				if( DEBUG > 99 ) {
+					error_log( "owStart.php::ReadAndStoreCalendar(): Initial continuation line='$nextLine'\n" );
+				}
+				// remove trailing whitespace:
+				$nextLine = rtrim( $nextLine );
+				// remove comments
+				$nextLine = preg_replace( "/\s*#.*$/", "", $nextLine );
+				// remove leading space
+				$nextLine = preg_replace( "/^\s+/", "", $nextLine );
+				// remove trailing space
+				$nextLine = preg_replace( "/\s+$/", "", $nextLine );
+				// now append the continuation line with the previous line(s):
+				if( DEBUG > 99 ) {
+					error_log( "owStart.php::ReadAndStoreCalendar(): Final continuation line='$nextLine'\n" );
+				}
+				$line .= $nextLine;
+				// Note that $line may end with a continuation character. In that case
+				// the above while() will find it and get another line.
+			} else {
+				// hit an EOF - take what we've got and process it
+			}
+		} // end of while( preg_match( ...
 		// ignore blank or empty lines
 		if( preg_match( "/^\s*$/", $line ) ) continue;
+		if( DEBUG > 99 ) {
+			error_log( "owStart.php::ReadAndStoreCalendar(): Initial line+all continuation='$line'\n" );
+		}
 		// we have a non-blank, non-empty, non-comment line
 		if( $state == WAITING_FOR_CALENDAR ) {
 			// did we find the beginning of the calendar?
@@ -156,27 +204,52 @@ function ReadAndStoreCalendar( $OWPropsFullPath, array &$OWProps ) {
 */
 function ProcessCalendarLine( $line, array &$OWProps ) {
 	$data = array();
-	if( DEBUG > 99 ) {
+	$version = 1;		#default
+	if( DEBUG > 98 ) {
 		error_log( "owStart.php::ProcessCalendarLine(): entered with line='$line'.\n" );
 	}
-	[$fileName, $cat, $date, $distance, $eventName, $uniqueID, $keyword] = 
-		preg_split( "/\s*->\s*/", $line );
-	if( DEBUG > 99 ) {
-		error_log( "owStart.php::ProcessCalendarLine(): split returned, fileName='$fileName'.\n" );
+	// split the passed line into fields:
+	$arrOfFields = preg_split( "/\s*->\s*/", $line );
+	// does this line begin with a version number?
+	if( preg_match( "/^\d+$/", $arrOfFields[0] ) ) {
+		// yes!
+		$version = $arrOfFields[0];
+		array_shift( $arrOfFields );
 	}
-
-	$data["filename"] = $fileName;
-	$data["cat"] = $cat;
-	$data["date"] = $date;
-	$data["distance"] = $distance;
-	$data["name"] = $eventName;
-	$data["unique"] = trim( $uniqueID );
-	if( ! isset( $keyword ) ) {
-		$keyword = "";
+	if( $version == 1 ) {
+		[$fileName, $cat, $date, $distance, $eventName, $uniqueID, $keyword] = 
+			$arrOfFields;
+		if( DEBUG > 98 ) {
+			error_log( "owStart.php::ProcessCalendarLine(): version 1, fileName='$fileName'.\n" );
+		}
+		$data["filename"] = $fileName;
+		$data["cat"] = $cat;
+		$data["date"] = $date;
+		$data["distance"] = $distance;
+		$data["name"] = $eventName;
+		$data["unique"] = trim( $uniqueID );
+		if( ! isset( $keyword ) ) {
+			$keyword = "";
+		}
+		$data["keyword"] = strtolower( trim( $keyword ) );
+	} else if( $version == 2 ) {
+		[$eventName, $cat, $date, $distance, $uniqueID, $keyword, $fileName, $link] =
+			$arrOfFields;
+		if( DEBUG > 98 ) {
+			error_log( "owStart.php::ProcessCalendarLine(): version 2, fileName='$fileName'.\n" );
+		}
+		$data["filename"] = $fileName;
+		$data["cat"] = $cat;
+		$data["date"] = $date;
+		$data["distance"] = $distance;
+		$data["name"] = $eventName;
+		$data["unique"] = trim( $uniqueID );
+		$data["keyword"] = strtolower( trim( $keyword ) );
+	} else {
+		error_log( "owStart.php::ProcessCalendarLine(): invalid version: '$version'.\n" );
 	}
-	$data["keyword"] = strtolower( trim( $keyword ) );
 	array_push( $OWProps, $data );
-	if( DEBUG > 90 ) {
+	if( DEBUG > 98 ) {
 		error_log( "owStart.php::ProcessCalendarLine(): done.\n" );
 	}
 } // end of ProcessCalendarLine()

@@ -1,8 +1,12 @@
 <?php
-// rsind.php - this page handles a submit from the main Upload page when the requested
-// upload is for an RSIND file. This page will continue to be requested for every file 
-// uploaded (or attempted). It is redirected to by PostAnUpload.php.
-
+/*
+** rsind.php - this page handles a submit from the main Upload page when the requested
+** upload is for an RSIND file. This page will continue to be requested for every file 
+** uploaded (or attempted). It is redirected to by PostAnUpload.php.
+**
+** NOTE: For DEBUGGING see lib/UploadSupport.php and read about DEBUG*
+**
+*/
 
 session_start();
 error_reporting( E_ERROR & E_PARSE & E_NOTICE & E_CORE_ERROR & E_DEPRECATED & E_COMPILE_ERROR &
@@ -10,19 +14,21 @@ error_reporting( E_ERROR & E_PARSE & E_NOTICE & E_CORE_ERROR & E_DEPRECATED & E_
 // thie following ini_set is there to allow us to read files with \r line termination!
 ini_set("auto_detect_line_endings", true);
 
+$scriptName = $_SERVER['SCRIPT_NAME'];
+
 require_once "/usr/home/pacdev/Automation/PMSUpload/Code/lib/LocalSupport.php";
 $localProps = LS_ReadLocalProps();
 require_once $localProps[0];
+if( DEBUG ) {
+	error_log( "Entered $scriptName, DEBUG=" . DEBUG . "\n" );
+}
+
 
 // $NOCOPY is set to non-empty if we don't really want to copy RSIND files to the appropriate
 // destination locations. This is useful during debugging. During normal operations we want
 // to set $NOCOPY to an empty string.
 $NOCOPY = NO_COPY_RSIND;
 
-$scriptName = $_SERVER['SCRIPT_NAME'];
-if( DEBUG ) {
-	error_log( "Entered $scriptName\n" );
-}
 
 // initialization...
 $yearBeingProcessed = date("Y");		// the year in which we are running
@@ -34,6 +40,16 @@ $encrypted = $_SESSION['encrypted'];
 $UsersFullName = $_SESSION['UsersFullName'];
 $obUserName = $_SESSION['obUserName'];
 
+
+/// before validating the key let's see what we got:
+	if( DEBUG ) {
+		error_log( "Rsind.php: not sure about the key yet, but...:");
+		error_log( "get is: " . var_export( $_GET, true ) );
+		error_log( "post is: " . var_export( $_POST, true ) );
+		error_log( "files is: " . var_export( $_FILES, true ) );
+}
+
+/////////////////////////////////////// TEST KEY ////////////////////////////////////
 // analyze the stored $encrypted to see if the key associated with this session is valid:
 $isValidKey = US_TestValidKey( $encrypted );
 if( $isValidKey > 0 ) {
@@ -44,13 +60,21 @@ if( $isValidKey > 0 ) {
 			error_log( "key too old!" );
 		}
 		US_ExpiredKey( $uploadType, $scriptName );
+		if( DEBUG ) {
+			error_log( "Exit $scriptName - expired key\n" );
+		}
 		exit;
 	} else {
 		// invalid key (probably missing)
 		US_InvalidRequest( $obUserName, "", "", $uploadType, $scriptName, 1 );
+	if( DEBUG ) {
+		error_log( "Exit $scriptName - invalid (or missing) key\n" );
+	}
 		exit;
 	}
 }
+///////////////////////////////////// END TEST KEY ////////////////////////////////////
+
 
 // We will put ALL uploaded files into this directory:
 $destinationDirPartial = "../UploadedFiles/RSIND/";
@@ -106,6 +130,9 @@ if( isset($_FILES['files']) ) {
 		if(!in_array(strtolower($extension), $allowed)){
 			US_SetError( "The file $originalFileName (aka '$convertedFileName')  has an invalid extension " .
 					 "- upload aborted!" );
+if( DEBUG ) {
+	error_log( "Exit $scriptName after calling and returning from US_SetError() - see error above\n" );
+}
 			exit;
 		}
 		// Next, move the uploaded file from the temp location to the location we really want to use:
@@ -113,15 +140,23 @@ if( isset($_FILES['files']) ) {
 		if( $message != "" ) {
 			// failed to create necessary directory
 			US_SetError( $message );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
 			exit;
 		}
 
-		// But, before we move it make sure it won't over-write an existing file.  We don't allow that.
-		$message = US_FileAlreadyExists( $destinationDir, $convertedFileName );
-		if( $message != "" ) {
-			// file already exists
-			US_SetError( $message );
-			exit;
+		if( ! DEBUG_RSIND ) {
+			// But, before we move it make sure it won't over-write an existing file.  We don't allow that.
+			$message = US_FileAlreadyExists( $destinationDir, $convertedFileName );
+			if( $message != "" ) {
+				// file already exists
+				US_SetError( $message );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
+				exit;
+			}
 		}
 
 		if(move_uploaded_file($_FILES['files']['tmp_name'][0], $destinationDir.$convertedFileName)) {
@@ -135,24 +170,39 @@ if( isset($_FILES['files']) ) {
 				$message = ArchiveUploadedFile( $destinationDir, $convertedFileName );
 				$arrOfLines[$count] = $message;
 				US_SetError( $arrOfLines );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
 				exit;
 			} elseif( $status == 2 ) {
 				// the RSIND file already existed in at least one destination, but copied to others where
 				// it didn't exist:
 				US_SetError( $arrOfLines );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
 				exit;
 			} elseif( $status != 0 ) {
 				// something went wrong with the exec
 				US_SetError( $arrOfLines );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
 				exit;
 			} else {
 				//echo '{"status":"success"}';
 				SetSuccess( $arrOfLines );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see SUCCESS above\n" );
+}
 				exit;
 			}
 		} else {
 
 			US_SetError( "The file " . $_FILES['files']['tmp_name'][0] . " failed to upload!" );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
 			exit;
 		}
 	} else {
@@ -162,6 +212,9 @@ if( isset($_FILES['files']) ) {
 		}
 		$message = US_CodeToMessage( $_FILES['files']['error'][0] );
 		US_SetError( $message );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see error above\n" );
+}
 		exit;
 	}
 
@@ -187,6 +240,9 @@ elseif( !empty( $_POST ) ) {
 		if( DEBUG ) {
 			error_log( "send an email to '$to' re '$subject'" );
 		}
+if( DEBUG ) {
+	error_log( "Exit $scriptName - see email sent above\n" );
+}
 		exit;
 	}
 } // end of !empty( $_POST...
@@ -196,6 +252,9 @@ elseif( !empty( $_POST ) ) {
 // in that case just show the Drop window and let the user give us a file:
 US_GeneratePageHead( "RSIND" );
 US_GenerateDropZone( $UsersFullName, "RSIND" );
+if( DEBUG ) {
+	error_log( "Exit $scriptName - after US_GenerateDropZone()\n" );
+}
 exit;
 
 

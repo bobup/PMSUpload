@@ -1,9 +1,13 @@
 <?php
-// OW.php - this page handles a submit from the main Upload page when the requested
-// upload is for an OW result file. This page will continue to be requested for every file 
-// uploaded (or attempted). It is redirected to by OwStart.php which is redirected to by
-// PostAnUpload.php.
-
+/*
+** OW.php - this page handles a submit from the main Upload page when the requested
+** upload is for an OW result file. This page will continue to be requested for every file 
+** uploaded (or attempted). It is redirected to by OwStart.php which is redirected to by
+** PostAnUpload.php.
+**
+** NOTE: For DEBUGGING see lib/UploadSupport.php and read about DEBUG*
+**
+*/
 
 session_start();
 error_reporting( E_ERROR & E_PARSE & E_NOTICE & E_CORE_ERROR & E_DEPRECATED & E_COMPILE_ERROR &
@@ -202,7 +206,8 @@ if( isset($_FILES['files']) ) {
 			// We've got the uploaded file.  Do some simple validation before we decide whether or not
 			// we'll keep this file:
 			list( $arrOfLines, $status ) = ValidateOWFile( $destinationDirTmp, $convertedFileName, $OWProps, $eventNum );
-			array_push( $arrOfLines, "  (Number of errors found: $status )" );
+//			array_unshift( $arrOfLines, "  (Number of errors found: $status)" );
+			array_unshift( $arrOfLines, "(Number of errors found: $status)", "  " );
 			$count = count( $arrOfLines );
 			if( $status > 0 ) {
 				SetError( $arrOfLines );
@@ -637,11 +642,10 @@ function ArchiveUploadedFile( $sourceDir, $fileName, $destinationDir, $OWProps, 
  * RETURNED:
  * 	$message - a message (array of strings) to be sent back to the browser. An empty array 
  *		means nothing to say (i.e. usually no error.) Each string is NOT terminated with a newline.
- * 	$status - 0 if OK, non-zero if not.  Specifically, a negative value if we had some "internal" error
- *		that likely isn't due to bad data (e.g. exec failed, couldn't open tmp file, etc.)
- *		or it's the status code returned by GenerateOWResults.pl (set to a negative value)  A positive
+ * 	$status - 0 if OK, non-zero if not.  Specifically, a non-zero value if we had some "internal" error
+ *		that likely isn't due to bad data (e.g. exec failed, couldn't open tmp file, etc.) The absolute
+ *		value will be returned, and will represent the number of errors found. Often this
  *		value represents the number of FATAL ERRORs discovered by processing the single OW file.
- *		or it's the status code returned by GenerateOWResults.pl .
  *
  */
 function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
@@ -655,30 +659,62 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	$dirResult = false;
 	$numBytesWritten = 0;
 	$fullFileName = $destinationDir . $fileName;	// may be partial path relative to CWD
+	if( DEBUG > 2 ) {
+		error_log( "ValidateOWFile(): file to validate: '$fullFileName'");
+	}
+	// make sure we can open and read our file to be validated
 	$fp = fopen( $fullFileName, "r" );
 	if( ! $fp ) {
 		$status = -1;
 		$message[0] = "Internal error - unable to open the file just uploaded ($fullFileName) - upload aborted!";
 	} else {
+		// yep - we can read it.
 		fclose( $fp );
 		// if our temp directory already exists then remove it, then re-create it.
 		if( is_dir( $OWPointsTmpDirName ) ) {
-			foreach( scandir( $OWPointsTmpDirName ) as $file ) {
-				if( $file == '.' || $file == '..' ) {
-					continue;
-				} else {
-					// assume a simple file!
-					unlink( "$OWPointsTmpDirName/$file" );
+			if( FullRemoveDir( $OWPointsTmpDirName ) ) {
+				if( DEBUG > 2 ) {
+					error_log( "ValidateOWFile(): successfully removed $OWPointsTmpDirName\n" );
+				}
+			} else {
+				if( DEBUG > 2 ) {
+					error_log( "ValidateOWFile(): failed to remove $OWPointsTmpDirName -  keep going.\n" );
+				}
+				// that's not good, but we can still keep going if we just try to re-use the directory
+				// we couldn't remove.  We probably can't, but we'll try...
+			}
+		}
+		
+		// we need a temp directory. If it doesn't already exist we're going to create it:
+		if( is_dir( $OWPointsTmpDirName ) ) {
+			$dirResult = opendir( $OWPointsTmpDirName );
+			if( $dirResult == false ) {
+				if( DEBUG > 2 ) {
+					error_log( "ValidateOWFile(): failed to opendir $OWPointsTmpDirName\n" );
+				}
+				$status = -1;
+				$message[0] = "Internal error - unable to open the temp directory '$OWPointsTmpDirName' - upload aborted!";
+			} else {
+				if( DEBUG > 2 ) {
+					error_log( "ValidateOWFile(): successfully opendir $OWPointsTmpDirName\n" );
 				}
 			}
-			rmdir( $OWPointsTmpDirName );
-		}
-		$dirResult = mkdir( $OWPointsTmpDirName, 0770 );
-		if( ! $dirResult ) {
-			$status = -1;
-			$message[0] = "Internal error - unable to create the temp directory '$OWPointsTmpDirName' - upload aborted!";
+		} else {
+			$dirResult = mkdir( $OWPointsTmpDirName, 0770 );
+			if( $dirResult == false ) {
+				if( DEBUG > 2 ) {
+					error_log( "ValidateOWFile(): failed to mkdir $OWPointsTmpDirName\n" );
+				}
+				$status = -1;
+				$message[0] = "Internal error - unable to create the temp directory '$OWPointsTmpDirName' - upload aborted!";
+			} else {
+				if( DEBUG > 2 ) {
+					error_log( "ValidateOWFile(): successfully mkdir $OWPointsTmpDirName\n" );
+				}
+			}
 		}
 	}
+	$fp = 0;		// make sure we don't confuse file pointers!
 	if( $dirResult ) {
 		// we have a temp directory - use it for exec'ing GeneratOWResults.pl
 		// construct an input line for GeneratOWResults.pl running in single file mode:
@@ -688,6 +724,9 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 			$message[0] = "Internal error - unable to open $OWPointsTmpCalendarEntry - upload aborted!";
 		}
 	}
+	// we're done with our temp directory....for now:
+	closedir( $dirResult );
+	
 	if( $fp ) {
 		$cat = $OWProps[$eventNum]["cat"];
 		$date = $OWProps[$eventNum]["date"];
@@ -703,35 +742,38 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	}
 	if( $numBytesWritten ) {
 		// execute the OW processing script in 'single file' mode:
-//xxxxxx
-	//	$cmd = "/usr/bin/perl 2>&1 /usr/home/pacdev/Automation/PMSOWPoints/Code/GenerateOWResults.pl " .
-	//		"$yearBeingProcessed -sf < $OWPointsTmpCalendarEntry -g$OWPointsTmpDirName -lLogFile";
 		$cmd = "/usr/bin/perl 2>&1 /usr/home/pacdev/Automation/PMSOWPoints/Code/GenerateOWResults.pl " .
 			"$yearBeingProcessed -sf < $OWPointsTmpCalendarEntry -g$OWPointsTmpDirName";
 		if( DEBUG > 2 ) {
 			error_log( "ValidateOWFile(): cmd for exec(): '$cmd'");
 		}
 		$execResult = exec( $cmd, $message, $status );
-		if( $status > 0 ) {
-			# the exec status will be set to a negative value.
-			$status = -$status;
+		if( $status ) {
+			// prepend the result code to the message and then set $status to 1 to represent
+			// one error:
+			$message = "Internal error: $status result code when trying to validate the uploaded file.\n" . $message;
+			$status = 1;
 		}
-
-		if( $execResult ) {
+		// $message is an array containing STDOUT of the executed $cmd. This may be empty 
+		// (if, for example, the $cmd didn't run at all) or it may contain errors (if the
+		// $cmd ran but wrote out error messages). We're going to write STDOUT to our STDOUT
+		// log file.  If no error we'll empty $message.
+		$fp = fopen( $OWPointsStdout, "w" );
+		foreach( $message as $line ) {
+			fwrite( $fp, $line . "\n" );
+		}
+		fclose( $fp );
+		if( $execResult !== false ) {
 			if( DEBUG > 2 ) {
-				error_log( "ValidateOWFile(): result from successful exec(): '$execResult'");
+				error_log( "ValidateOWFile(): result from successful exec(): '$execResult'," .
+					"status=$status");
 			}
-			// discard the STDOUT of the exec...
-			$fp = fopen( $OWPointsStdout, "w" );
-			foreach( $message as $line ) {
-				fwrite( $fp, $line . "\n" );
-			}
-			fclose( $fp );
 			unset( $message );
 		} else {
 			if( DEBUG > 2 ) {
-				error_log( "ValidateOWFile(): exec() failed!");
-				$status = -2;
+				error_log( "ValidateOWFile(): exec() failed! STDOUT from the command is " .
+					"called 'message' and shown below.");
+				$status = 1;
 			}
 		}
 	}
@@ -739,25 +781,81 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	// if our processing completed successfully then we'll now look to see if there
 	// were any errors detected:
 	if( ! $status ) {
+		global $OWPointsLogFileName;
 		$status = AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, $message );
 	} else {
 		// something went wrong with what we exec'ed...
-		$message[0] = "Internal Error - Failed to process the OW result file.";
-		$message[1] = "  (status=$status)";
+		//$message[0] = "Internal Error - Failed to process the OW result file.";
+		//$message[1] = "  (status=$status)";
 		if( DEBUG ) {
-			error_log( "ValidateOWFile(): Failed to process the OW result file.  status='$status'" );
+			error_log( "ValidateOWFile(): Failed to process the OW result file.  " .
+				"status='$status', message:" );
+			foreach( $message as $line ) {
+				error_log( $line );
+			}
 		}
 	}
-	
-	
-	
+
 	if( DEBUG ) {
 		$str = var_export( $message, true );
-		error_log( "ValidateOWFile(): status='$status', message='$str'" );
+		error_log( "ValidateOWFile(): Return with status='$status', message='$str'" );
 	}
 	
+	$status = abs($status);
 	return array( $message, $status );
 } // end of ValidateOWFile()
+
+
+
+
+
+
+// 			if( FullRemoveDir( $OWPointsTmpDirName ) ) {
+/*
+* FullRemoveDir - remove all files and subdirectories from the passed directory, and then the
+*	directory.
+*
+* PASSED:
+*	$dirName - the full path of the directory to remove.
+*
+* RETURNED:
+*	true if OK, false otherwise.
+*
+*/
+function FullRemoveDir( $dirName ) {
+	$result = 1;		// hope for the best...
+	foreach( scandir( $dirName ) as $file ) {
+		if( $file == '.' || $file == '..' ) {
+			continue;
+		} else {
+			$fullFile = "$dirName/$file";
+			if( is_dir( $fullFile) ) {
+				// this is a sub-directory - remove it
+				$result = FullRemoveDir( $fullFile );
+			} else {
+				// assume a simple file!
+				$result = unlink( "$fullFile" );
+			}
+		}
+		if( !result ) {
+			error_log( "FullRemoveDir(): Failed to remove $fullFile." );
+			break;
+		}
+	} // end of foreach( ...
+	if( result ) {
+		$result = rmdir( $dirName );
+	}
+	if( $result ) {
+		if( DEBUG > 2 ) {
+			error_log( "FullRemoveDir(): successfully removed $dirName\n" );
+		}
+	} else {
+		if( DEBUG > 2 ) {
+			error_log( "FullRemoveDir(): failed to remove $dirName\n" );
+		}
+	}
+	return $result;
+} // end of FullRemoveDir()
 
 
 
@@ -907,7 +1005,7 @@ function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
 		fclose( $fp );
 	} // end of processing the log file
 	if( DEBUG ) {
-		error_log( "AnalyzeLogFile(): return status='$status'" );
+		error_log( "AnalyzeLogFile(): return # errors found ='$status'" );
 	}
 	
 	return $status;
@@ -1118,11 +1216,13 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
 			// Prevent default behavior (Prevent file from being opened)
 			ev.preventDefault();
 			document.getElementById( "drop_zone" ).style.borderColor = "red";
+			document.getElementById( "NoUploads").innerHTML = "(Testing the newly dropped result file.)";
 		} // end of dragOverHandler()
 		function dragOverLeaveHandler( ev ) {
 			// Prevent default behavior (Prevent file from being opened)
 			ev.preventDefault();
 			document.getElementById( "drop_zone" ).style.borderColor = "blue";
+			document.getElementById( "NoUploads").innerHTML = "(Waiting for the results file to be dropped here)";
 		} // end of dragOverLeaveHandler()
 
 		/*
@@ -1416,7 +1516,9 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 				$date = $event['date'];
 				$cat = $event['cat'];
 				$uploadDetails = $name . " (category $cat) held on " . $date;
-	error_log( "uploadDetails=$uploadDetails, eventNum=$eventNum");
+				if( DEBUG ) {
+					error_log( "uploadDetails=$uploadDetails, eventNum=$eventNum");
+				}
 			?>
 			
 			  <div id="UploadAFilePrompt">

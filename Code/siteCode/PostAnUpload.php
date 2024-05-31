@@ -16,6 +16,9 @@
 ** (i.e. a hack) and we'll give the user an error that pretends that what they are doing
 ** just isn't recognized. If there is POST data we'll confirm the correct data is supplied
 ** as described above. If the POSTed data is not valid then we'll assume a hack.
+**
+** NOTE: For DEBUGGING see lib/UploadSupport.php and read about DEBUG*
+**
  */
 
 // Copyright (c) 2022 Bob Upshaw.  This software is covered under the Open Source MIT License
@@ -23,18 +26,17 @@
 error_reporting( E_ERROR & E_PARSE & E_NOTICE & E_CORE_ERROR & E_DEPRECATED & E_COMPILE_ERROR &
 	E_RECOVERABLE_ERROR & E_ALL );
 
-//define( "DEBUG", "1" );		// 0=no debugging, >0 turn on debugging
 session_start();
+
+$scriptName = $_SERVER['SCRIPT_NAME'];
+
 require_once "/usr/home/pacdev/Automation/PMSUpload/Code/lib/LocalSupport.php";
 $localProps = LS_ReadLocalProps();
 require_once $localProps[0];		// e.g. UploadSupport.php from somewhere... defines DEBUG
 
-$scriptName = $_SERVER['SCRIPT_NAME'];
 if( DEBUG ) {
 	error_log( "----> Entered $scriptName\n" );
 }
-
-
 // initialization...
 // If we get far enough along with this process where we have a good idea of who the user is that
 // is trying to upload a file we will remember their full name here:
@@ -61,7 +63,7 @@ fwrite( $logHandle, "\n\n--> Begin New Entry: $currentDateTimeStr\n" );
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 if( DEBUG ) {
-	error_log( "ready to test post");
+	error_log( "PostAnUpload.php::ready to test post");
 }
 
 if( !empty( $_POST ) ) {
@@ -95,6 +97,9 @@ if( !empty( $_POST ) ) {
 			// Invalid access - blow them off with a bogus error message so they don't realize they almost
 			// got in!
 			US_InvalidRequest( $obUserName, "", $UserName, $uploadType, $scriptName . "-invalid user name", 1 );
+			if( DEBUG ) {
+				error_log( "----> Exit $scriptName with invalid user name\n" );
+			}
 			exit;
 		} else {
 			if( DEBUG ) {
@@ -116,6 +121,9 @@ if( !empty( $_POST ) ) {
 			error_log( "The post had no UserName!\n" );
 		}
 		US_InvalidRequest( "(no value)", "", "(no passed key)", $uploadType, $scriptName . "-no user name", 1 );
+		if( DEBUG ) {
+			error_log( "----> Exit $scriptName with no user name\n" );
+		}
 		exit;
 	}
 	
@@ -141,6 +149,9 @@ if( !empty( $_POST ) ) {
 		<body> </body>
 		</html>
 		<?php
+		if( DEBUG ) {
+			error_log( "----> Exit $scriptName - replace window with Rsind.php\n" );
+		}
 		exit;
 	} elseif( $uploadType == "OW" ) {
 		if( DEBUG > 1 ) {
@@ -160,6 +171,9 @@ if( !empty( $_POST ) ) {
 		<body> </body>
 		</html>
 		<?php
+		if( DEBUG ) {
+			error_log( "----> Exit $scriptName - replace window with OwStart.php\n" );
+		}
 		exit;
 	}
 }
@@ -168,6 +182,7 @@ if( !empty( $_POST ) ) {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 US_InvalidRequest( "(no value)", "", "(no passed data)", $uploadType, $scriptName . "-nothing posted", 1 );
+error_log( "----> Exit $scriptName - nothing posted\n" );
 exit;
 
 
@@ -175,11 +190,7 @@ exit;
 // END OF MAIN PROGRAM - Support PHP functions
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-
-
+// end of PostAnUpload.php
 
 
 ?>

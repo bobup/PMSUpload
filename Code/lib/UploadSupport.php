@@ -7,21 +7,22 @@
 
 // Copyright (c) 2019-2022 Bob Upshaw.  This software is covered under the Open Source MIT License
 
-define( "DEBUG", "11" );		// 0=no debugging, >0 turn on debugging
+define( "DEBUG", "0" );		// 0=no debugging, >0 turn on debugging
 define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribution of the RSIND
-								// file to the various destinations. 0 = enable emails to 
-								// rsind_uploads@pacificmasters.org and distribute the RSIND file.
-								// 1 = email to single person (debugger) and DON'T distribute
-								// the RSIND file.
-define( "DEBUG_OW", "1" );		// used only to enable/disable emails. 0 = enable emails 
+								// file to the various destinations. 
+								// 0 = enable emails to 
+								// 	rsind_uploads@pacificmasters.org and distribute the RSIND file.
+								// 1 = email to single person (see RSIND_EMAIL_RECIPIENTS) and 
+								// 	DON'T distribute the RSIND file.
+								//	Also, allow duplicate RSIND file uploads.
+define( "DEBUG_OW", "0" );		// used only to enable/disable emails. 0 = enable emails 
 								// to ow_uploads@pacificmasters.org
-								// 1 = email to single person (debugger)
+								// 1 = email to single person (see OW_EMAIL_RECIPIENTS)
 define( "MAX_AGE_KEY", "50" );	// The max age of a user's session, in minutes.
 //define( "MAX_AGE_KEY", "0" );	// The max age of a user's session, in minutes.
 
-$scriptName = "UploadSupport.php";
 if( DEBUG > 10 ) {
-	error_log( "Entered $scriptName\n" );
+	error_log( "Entered UploadSupport.php\n" );
 }
 
 define( "DATE_TIME_FORMAT", "Y-m-d H:i:s" );		// e.g. "2019-01-03 18:06:09"
@@ -40,7 +41,6 @@ $validNames = array();
 if( DEBUG_RSIND ) {
 	define( "RSIND_EMAIL_RECIPIENTS", "bobup@acm.org" );
 	define( "NO_COPY_RSIND", "nocopy" );	// NO_COPY_RSIND is set to non-empty if we don't 
-//define( "NO_COPY_RSIND", "" );	// see above
 	// really want to copy RSIND files to the appropriate
 	// destination locations. This is useful during debugging. During normal operations we want
 	// to set NO_COPY_RSIND to an empty string.
@@ -360,7 +360,7 @@ function US_TestValidKey( $encrypted ) {
 		$bigDiff = $interval->y + $interval->m + $interval->d + $interval->h;
 		$minDiff = $interval->i;
 		if( ($bigDiff > 0) || ($minDiff > MAX_AGE_KEY) ) {
-			// e.g. this key is over 50 minutes old...
+			// e.g. this key is over 50 minutes (ie MAX_AGE_KEY minutes) old...
 			$result = 2;
 		} else {
 			// looks like a valid key!
@@ -368,12 +368,18 @@ function US_TestValidKey( $encrypted ) {
 	}
 	
 	if( DEBUG > 10 ) {
-		error_log( "US_TestValidKey(): result=$result." );
-		if( ($result == 0) || ($result == 2) ) {
-			$intString = $interval->format( "%y years, %m months, %d days, %h hours, %i minutes, " .
-				"%s seconds");
-			error_log( "Key: '$key'; life of key: '$intString'");
+		$intString = $interval->format( "%y years, %m months, %d days, %h hours, %i minutes, " .
+			"%s seconds");
+		error_log( "Prior to exit US_TestValidKey(): Max age of key: " . MAX_AGE_KEY . 
+			" minutes,\n    current life of key: $intString" );
+		if( $result == 0 ) {
+			error_log( "Key is VALID" );
+		} else if( $result == 1 ) {
+			error_log( "Key NOT FOUND (INVALID)" );
+		} else {
+			error_log( "Key NOT VALID - EXPIRED" );
 		}
+		error_log( "exit US_TestValidKey(): result=$result." );
 	}
 	return $result;
 } // end of US_TestValidKey()
@@ -541,7 +547,7 @@ function US_SetError( $err ) {
 	}
 	echo '{"status":"error", "msg":"' . $fullMsg . '"}';
 	if( DEBUG > 10 ) {
-		error_log( __FILE__ . ": US_SetError(): exit." );
+		error_log( __FILE__ . ": US_SetError(): return." );
 	}
 } // end of US_SetError()
 
@@ -656,18 +662,25 @@ function US_InvalidRequest( $value, $expectedKey, $passedKey, $uploadType, $sour
  *	$source - the file name of the script that discovered the expired key.
  *
  * NOTES:
- * 	We're actually generating a 404 page so the person who caused this invalid request to be
- * 	made doesn't get a hint as to what they almost did.  The passed values are never shown
- * 	to the user - they just get logged.
  */
 function US_ExpiredKey( $uploadType, $source ) {
 	global $logHandle;
 	global $UsersFullName;
+	
+	$msg = [];
+	$msg[] = "Expired Key";
+	$msg[] = "<p>I'm sorry - your session has expired. Please log in again ";
+	$msg[] = "<a href='https://pacmdev.org/points/Upload/Upload.html'>here</a>.";
+//US_SetError( "Expired Key");
+US_SetError( $msg );
+	
+	
 	if( $uploadType == "OW" ) {
 		$emailRecipients = OW_EMAIL_RECIPIENTS;
 	} else {
 		$emailRecipients = RSIND_EMAIL_RECIPIENTS;
 	}
+if(0) {
 	US_GeneratePageHead( $uploadType );
 	?>
 	</head>
@@ -679,8 +692,9 @@ function US_ExpiredKey( $uploadType, $source ) {
 	</html>
 
 	<?php
+}
 	$msg = "Session expired for $UsersFullName (found in $source)";
-//	US_SendEmail( $emailRecipients, "PAC Masters", "Invalid Request POSTed", $msg );
+	US_SendEmail( $emailRecipients, "PAC Masters", "Invalid Request POSTed - Expired Key", $msg );
 	if( DEBUG ) {
 		error_log( __FILE__ . ": US_ExpiredKey(): msg='$msg'" );
 	}
@@ -812,7 +826,7 @@ function US_GeneratePageEnd() {
  */
 function US_SendEmail( $to, $from, $subject, $email ) {
 	$headers = "From: $from Upload <uploads@pacificmasters.org>" . "\r\n" .
-		'Reply-To: $from Upload <uploads@pacificmasters.org>' . "\r\n" .
+		"Reply-To: $from Upload <uploads@pacificmasters.org>" . "\r\n" .
 		'X-Mailer: PHP/' . phpversion();
 	// if this email isn't going to one of the general "upload" mailboxes then we must be debugging...
 	if( strpos( $to, "upload" ) === false ) {
@@ -820,13 +834,20 @@ function US_SendEmail( $to, $from, $subject, $email ) {
 	}
 	if( DEBUG > 1 ) {
 		error_log( "US_SendEmail(): to:'$to', subject:'$subject', email:'$email', headers:'$headers'\n" );
+		if( DEBUG_RSIND ) {
+			error_log( "Debugging RSIND - email only sent to '" . RSIND_EMAIL_RECIPIENTS . "'\n" );
+		} else {
+			error_log( "Live RSIND - email sent to '" . RSIND_EMAIL_RECIPIENTS . "'\n" );
+		}
 	}
 
 	if( 1 ) {
 		if( !mail( $to, $subject, $email, $headers  ) ) {
 			error_log( "Mail to $to not successful\n" );
 		} else {
-			error_log( "email ok");
+			if( DEBUG > 1 ) {
+				error_log( "email ok");
+			}
 		}
 	} else {
 		error_log( "US_SendEmail() DISABLED: to:'$to', subject:'$subject', email:'$email', headers:'$headers'\n" );
@@ -986,9 +1007,9 @@ function US_GenerateDropZone( $UsersFullName, $uploadType ) {
 		// Once our page is loaded then execute the following:
 		///////////////////////////////////////////////////
 		$(function() {
-			$('#upload').attr( 'action', myURL );
+			$('#uploadDragDrop').attr( 'action', myURL );
 		
-			$('#upload').fileupload({
+			$('#uploadDragDrop').fileupload({
 				dropZone: $('#drop_zone'),
 				formData: function( form ) {
 					return form.serializeArray();
@@ -1067,7 +1088,8 @@ function US_GenerateDropZone( $UsersFullName, $uploadType ) {
 					}
 					startMsg = "Upload of " + fileName + " FAILED!  (Internal Error!)";
 					fullMsg = "<p style='color:red'>" + startMsg + "</p>";
-					UpdateScreenWithStatus( fullMsg, e, startMsg, "(The $('#upload').fileupload() failed.)", "" );
+					UpdateScreenWithStatus( fullMsg, e, startMsg, 
+						"(The $('#uploadDragDrop').fileupload() failed.)", "" );
 				}
 			});
 		});
@@ -1223,11 +1245,20 @@ function US_GenerateDropZone( $UsersFullName, $uploadType ) {
 					"e='" + e + "', startMsg='" + startMsg + "', hidden='" + hidden + "'" );
 			}
 
-			
-			$.post( myURL, {"to" : <?php echo "'" . $emailRecipients . "'"; ?>, 
-				"subject" : "<?php echo $uploadType;?> file uploaded by <?php echo "'" . $UsersFullName . "'"; ?>" + errMsg,
-				"emailAck" : msg}, function( data ) {
-			});
+			if( fullMsg.indexOf( "Expired Key" ) == -1 ) {
+				if( debug ) {
+					console.log( "post email at end of UpdateScreenWithStatus()" );
+					console.log( "fullMsg=<<<" + fullMsg + ">>>" );
+					console.log( "indexOf='" + fullMsg.indexOf( "Expired Key" ) + ";" );
+					
+				}
+				// send an email UNLESS it's an invalid key (because in that case we already sent
+				// an email)
+				$.post( myURL, {"to" : <?php echo "'" . $emailRecipients . "'"; ?>, 
+					"subject" : "<?php echo $uploadType;?> file uploaded by <?php echo "'" . $UsersFullName . "'"; ?>" + errMsg,
+					"emailAck" : msg}, function( data ) {
+				});
+			}
 			
 		} // end of UpdateScreenWithStatus();
 
@@ -1235,7 +1266,7 @@ function US_GenerateDropZone( $UsersFullName, $uploadType ) {
 	</script>
 	</head>
 	<body>
-	<form id="upload" method="post" action="filled in by jquery" enctype="multipart/form-data"
+	<form id="uploadDragDrop" method="post" action="filled in by jquery(Rsind.php)" enctype="multipart/form-data"
 		formData='{"script":"true"}'>
 			<div id="drop_zone" ondragover="dragOverHandler(event);" ondragleave="dragOverLeaveHandler(event);">
 			  <h1 align="center">Upload a New <?php echo $uploadType;?> File</h1>
@@ -1258,7 +1289,7 @@ function US_GenerateDropZone( $UsersFullName, $uploadType ) {
 	<?php
 	// Done drawing the drop zone for the user - let them decide what to do:
 	if( DEBUG ) {
-		error_log( "EXIT when at end of US_GenerateDropZone" );
+		error_log( "EXIT Rsind.php  when at end of US_GenerateDropZone" );
 	}
 	exit;
 
@@ -1335,7 +1366,7 @@ function US_SanatizeRegEx( $plainString ) {
 
 
 if( DEBUG > 10 ) {
-	error_log( "Exit $scriptName\n" );
+	error_log( "Exit UploadSupport.php\n" );
 }
 
 ?>
