@@ -15,7 +15,7 @@ ini_set("auto_detect_line_endings", true);
 
 require_once "/usr/home/pacdev/Automation/PMSUpload/Code/lib/LocalSupport.php";
 $localProps = LS_ReadLocalProps();
-require_once $localProps[0];
+require_once $localProps[0];		// UploadSupport.php, set DEBUG
 
 $scriptName = "OwStart.php";
 if( DEBUG ) {
@@ -105,10 +105,12 @@ exit;
 */
 define( "WAITING_FOR_CALENDAR", 1 );
 define( "PROCESSING_CALENDAR", 2 );
+define( "PROCESSING_SKIP", 3 );
 
 function ReadAndStoreCalendar( $OWPropsFullPath, array &$OWProps ) {
 	$props = fopen( $OWPropsFullPath, "r" ) or die ("Unable to open " . $OWPropsFullPath . " - ABORT!" );
 	$state = WAITING_FOR_CALENDAR;
+	$previousState = 0;
 	while( ($line = fgets( $props )) !== false ) {
 		if( DEBUG > 99 ) {
 			error_log( "owStart.php::ReadAndStoreCalendar(): Initial line='$line'\n" );
@@ -162,7 +164,15 @@ function ReadAndStoreCalendar( $OWPropsFullPath, array &$OWProps ) {
 			error_log( "owStart.php::ReadAndStoreCalendar(): Initial line+all continuation='$line'\n" );
 		}
 		// we have a non-blank, non-empty, non-comment line
-		if( $state == WAITING_FOR_CALENDAR ) {
+		if( preg_match( "/^>skip/", $line ) ) {
+			$previousState = $state;
+			$state = PROCESSING_SKIP;
+			continue;
+		} elseif( preg_match( "/^>endskip/", $line ) ) {
+			$state = $previousState;
+			$previousState = 0;
+			continue;
+		} elseif( $state == WAITING_FOR_CALENDAR ) {
 			// did we find the beginning of the calendar?
 			if( preg_match( "/^>calendar/", $line ) ) {
 				// yes!

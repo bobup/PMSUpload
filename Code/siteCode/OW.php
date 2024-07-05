@@ -84,6 +84,8 @@ $allowed = array('csv');		// this is all we currently accept for OW result files
 // We'll define that area here, and the files, too:
 // temporary directory:
 $OWPointsTmpDirName = "/tmp/UploadTmpDir-" . getmypid();
+error_log( "OW.php: OWPointsTmpDirName='$OWPointsTmpDirName'");
+
 // temporary file to control our use of GenerateOWResults.pl:
 $OWPointsTmpCalendarEntry = "$OWPointsTmpDirName/UploadTmpFile";
 // temporary file into which we store the STDOUT of GenerateOWResults.pl if/when invoked:
@@ -206,8 +208,8 @@ if( isset($_FILES['files']) ) {
 			// We've got the uploaded file.  Do some simple validation before we decide whether or not
 			// we'll keep this file:
 			list( $arrOfLines, $status ) = ValidateOWFile( $destinationDirTmp, $convertedFileName, $OWProps, $eventNum );
-//			array_unshift( $arrOfLines, "  (Number of errors found: $status)" );
-			array_unshift( $arrOfLines, "(Number of errors found: $status)", "  " );
+			array_unshift( $arrOfLines, "(Number of errors found: $status)\n\n" );
+//			array_unshift( $arrOfLines, "(Number of errors found: $status)", "  " );
 			$count = count( $arrOfLines );
 			if( $status > 0 ) {
 				SetError( $arrOfLines );
@@ -751,13 +753,14 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 		if( $status ) {
 			// prepend the result code to the message and then set $status to 1 to represent
 			// one error:
-			$message = "Internal error: $status result code when trying to validate the uploaded file.\n" . $message;
+			array_unshift( $message, "Internal error: $status result code when trying to validate the uploaded file.\n" );
+###			$message = "Internal error: $status result code when trying to validate the uploaded file.\n" . $message;
 			$status = 1;
 		}
 		// $message is an array containing STDOUT of the executed $cmd. This may be empty 
 		// (if, for example, the $cmd didn't run at all) or it may contain errors (if the
 		// $cmd ran but wrote out error messages). We're going to write STDOUT to our STDOUT
-		// log file.  If no error we'll empty $message.
+		// log file.  If no error we'll write an empty $message.
 		$fp = fopen( $OWPointsStdout, "w" );
 		foreach( $message as $line ) {
 			fwrite( $fp, $line . "\n" );
@@ -910,7 +913,7 @@ function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
 				// begins with '! END FATAL ERROR' will be considered part of the fatal error message.
 				$foundIssue = 1;
 				$line = trim( $line );		// remove leading and trailing whitespace (including newline)
-				$message[] = $line;
+				$message[] = $line . "\n";
 				$status++;
 				while( ($lineFE = fgets( $fp )) !== false ) {
 					$lastLine = $lineFE;		// this may be our last line...
@@ -921,7 +924,7 @@ function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
 					} else {
 						// we've got another FATAL ERROR line
 						$lineFE = rtrim( $lineFE );		// remove trailing whitespace (including newline)
-						$message[] = $lineFE;		// make this line part of the FATAL ERROR
+						$message[] = $lineFE . "\n";		// make this line part of the FATAL ERROR
 					}
 				}
 			} // end of ...else if( $match )...
@@ -941,7 +944,7 @@ function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
 					// we found an ERROR...
 					$foundIssue = 1;
 					$line = trim( $line );		// remove leading and trailing whitespace (including newline)
-					$message[] = $line;
+					$message[] = $line . "\n";
 					$status++;
 					while( ($lineFE = fgets( $fp )) !== false ) {
 						$lastLine = $lineFE;		// this may be our last line...
@@ -952,7 +955,7 @@ function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
 						} else {
 							// we've got another ERROR line
 							$lineFE = rtrim( $lineFE );		// remove trailing whitespace (including newline)
-							$message[] = $lineFE;		// make this line part of the ERROR
+							$message[] = $lineFE . "\n";		// make this line part of the ERROR
 						}
 					}
 			
@@ -981,7 +984,7 @@ function AnalyzeLogFile( $OWPointsTmpDirName, $yearBeingProcessed, &$message ) {
 						} else {
 							// we've got another WARNING line
 							$lineFE = rtrim( $lineFE );		// remove trailing whitespace (including newline)
-							$message[] = $lineFE;		// make this line part of the ERROR
+							$message[] = $lineFE . "\n";		// make this line part of the WARNING
 						}
 					}
 			
@@ -1276,6 +1279,9 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
 							// if necessary we may have to do something in here if we can't figure out the syntax error
 							if( debug ) console.log( "JSON.parse( result ) got an err named 'SyntaxError', err.message-'" +
 								err.message + "'." );
+						} else {
+							if( debug ) console.log( "JSON.parse( result ) got an err, err.message-'" +
+								err.message + "'." );
 						}
 						startMsg = "Upload of '" + fileName + "' FAILED!  JSON Syntax Error.<br>\n";
 						var nextId = GetNextId();
@@ -1287,10 +1293,10 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
 					if( status == "success" ) {
 						startMsg = "Upload of '" + fileName + "' SUCCESSFUL!<br>\n";
 					}
-					console.log( "Status when handling the file '" + fileName + "': " . status );
+					console.log( "Status when handling the file '" + fileName + "': " + status );
 					var allErrors = GetTextOfAllMessages( errArr );
-					if( debug ) console.log( "GetTextOfAllErrors() passed errors and returned '" +
-						allErrors + "'" );
+					if( debug ) console.log( "GetTextOfAllErrors() passed '" + errArr + 
+						"' and returned '" + allErrors + "'" );
 					fullMsg = startMsg + allErrors;
 					UpdateScreenWithStatus( fullMsg, startMsg, status, fileName );
 				},
@@ -1313,7 +1319,11 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
 		});
 		
 
-
+function ReplaceSpecialChars( line ) {
+		line = line.replace( "\n\n", "<p>" );
+		line = line.replace( "\n", "<br>" );
+		return line;
+} // end of ReplaceSpecialChars()
 
 
 /*
@@ -1321,12 +1331,25 @@ function GenerateOWDropZone( $UsersFullName, $eventNum=-1, $OWProps=array() ) {
  * 
  * PASSED:
  *	arrOfString - an array of strings (messages for the user) 
- *		This routine will ignore the first element and
- *		generate HTML using the following rules:
- *		- if a line DOESN'T begin with a space character then it, and all such lines that
+ *		This routine assumes the first element is a tag for the message and will not be shown
+ *			to the user. Therefore, this routine will ignore the first element.
+ *		This routine assumes the second element is a heading of some sort which will be visible
+ *			but will not react to a click event.
+ *		This routine assumes the following elements are text to be shown to the user; some of
+ *			this text is "VISIBLE", and some is "HIDDEN", where to expose the HIDDEN test 
+ *			the user will need to click on the preceding VISIBLE text.  HTML is generated
+ *			using the following rules:
+ *		- The first element is ignored (see above)
+ *		- All other elements are scanned for the following characters and, when found, replaced
+ *			as indicated:
+ *			\n\n - two newlines in a row.  Replaced with a <p>.
+ *			\n - a single newline.  Replaced with a <br>
+ *		- if a line DOESN'T begin with a space or tab character then it, and all such lines that
  *			follow it, will be shown as a list item and tied to a click action. 
  *			These lines make up a VISIBLE message.
  *		- if a line begins with a space character then it, and all such lines that follow
+ *			it will be part of the VISIBLE message and tied to the same click action.
+ *		- if a line begins with a tab character then it, and all such lines that follow
  *			it will be hidden and only exposed
  *			when the above click action occurs. These lines make up a HIDDEN message.
  *
@@ -1345,7 +1368,14 @@ function GetTextOfAllMessages( arrOfString ) {
 	for( var i = 1; i < len; i++ ) {
 		var line = arrOfString[i];
 		var firstChar = line.charAt(0);
-		if( firstChar == " " ) {
+		
+		line = ReplaceSpecialChars( line );
+		if( i == 1 ) {
+			result += line;
+			continue;
+		}
+		
+		if( firstChar == "\t" ) {
 			// we've got a string (or possibly strings) that make up a HIDDEN message.
 			// They will be tied to the click action 
 			result += "<div class='dropDiv' id='" + nextIdStr + 
@@ -1355,7 +1385,8 @@ function GetTextOfAllMessages( arrOfString ) {
 				// include any following lines that begin with a space
 				var line = arrOfString[k];
 				var firstChar = line.charAt(0);
-				if( firstChar == " " ) {
+		line = ReplaceSpecialChars( line );
+				if( firstChar == "\t" ) {
 					// we've got another piece of the HIDDEN message
 					result += line;
 				} else {
@@ -1382,9 +1413,10 @@ function GetTextOfAllMessages( arrOfString ) {
 				// include any following lines that do NOT begin with a space
 				var line = arrOfString[j];
 				var firstChar = line.charAt(0);
-				if( firstChar == " " ) {
+		line = ReplaceSpecialChars( line );
+				if( firstChar == "\t" ) {
 					// We've found the beginning of a HIDDEN message
-					result += "&nbsp;&nbsp;&nbsp;</p>";	// done with the VISIBLE message
+					result += "&nbsp;&nbsp;&nbsp;";	// done with the VISIBLE message
 					i = j-1;		// re-read this line as a HIDDEN message
 					break;
 				} else {
@@ -1395,7 +1427,7 @@ function GetTextOfAllMessages( arrOfString ) {
 			if( j >= len ) {
 				// We're all done with all the lines - finish up the VISIBLE message
 				// we were working on and return.
-				result += "&nbsp;&nbsp;&nbsp;</p>";	// done with the VISIBLE message
+				result += "&nbsp;&nbsp;&nbsp;";	// done with the VISIBLE message
 				i=j;		// force our outer loop to terminate
 			}
 		}
