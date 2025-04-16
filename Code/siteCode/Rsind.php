@@ -369,6 +369,10 @@ function ValidateRSINDFile( $destinationDir, $fileName ) {
 	}
 	
 	if( $status == 0 ) {
+		if( DEBUG ) {
+			error_log( "ValidateRSINDFile(): about to exec($localProps[1]" .
+			 " $destinationDir '$fileName' $yearBeingProcessed $NOCOPY 2>&1, $message, $status)" );
+		}
 		exec( $localProps[1] .
 			" $destinationDir '$fileName' $yearBeingProcessed $NOCOPY 2>&1", $message, $status );
 

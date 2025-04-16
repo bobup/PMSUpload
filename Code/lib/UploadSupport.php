@@ -9,6 +9,7 @@
 
 define( "DEBUG", "0" );		// 0=no debugging, >0 turn on debugging
 define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribution of the RSIND
+//define( "DEBUG_RSIND", "1" );	// used only to enable/disable emails and distribution of the RSIND
 								// file to the various destinations. 
 								// 0 = enable emails to 
 								// 	rsind_uploads@pacificmasters.org and distribute the RSIND file.
@@ -130,6 +131,9 @@ if( DEBUG > 99 ) {
  function US_ValidateUserName ( $userName, $uploadType ) {
  	$result = false;
  	$returnedFullName = "";
+	if( DEBUG ) {
+		//error_log( "US_ValidateUserName() entered.");
+	}
 	$now = new DateTime( "now", new DateTimeZone( "America/Los_Angeles" ) );
 	$day = $now->format( 'd' );		// 01 -> 31
 	
@@ -140,6 +144,10 @@ if( DEBUG > 99 ) {
 	preg_match( '/(^.*)(..$)/', $userName, $matches );
 	// At this point $matches[1] is the user's supplied login name, and $matches[2] is
 	// the 2 digits representing the day of the month supplied by the user.
+	if( DEBUG ) {
+		//error_log( "US_ValidateUserName: supplied name: $matches[1], day: $matches[2]");
+	}
+	
 	
 	//error_log( "userName='$userName', day='$day', $matches[1], $matches[2]");
 	$validUserName = "";
@@ -440,12 +448,18 @@ function US_KeysMatch( $passedKey, $expectedKey ) {
 // 		US_GetValidNames( $validNames, $uploadType );
 function US_GetValidNames( &$validNames, &$uploadType ) {
 	global $secretProps;
+	if( DEBUG ) {
+		//error_log( "US_GetValidNames() entered.");
+	}
 	$props = fopen( $secretProps, "r" ) or die ("Unable to open " . $secretProps . " - ABORT!" );
 	while( ($line = fgets( $props )) !== false ) {
+	if( DEBUG ) {
+		//error_log( "US_GetValidNames() line='$line'.");
+	}
 		// remove comments
 		$line = preg_replace( "/#.*$/", "", $line );
 		// ignore blank or empty lines
-		if( preg_match( "/^\s*$/", $line ) ) next;
+		if( preg_match( "/^\s*$/", $line ) ) continue;
 		$matches = array();
 		if( preg_match( "/Name_$uploadType:/", $line ) ) {
 			# found a valid name
@@ -459,8 +473,8 @@ function US_GetValidNames( &$validNames, &$uploadType ) {
 			$validNames[$fullName] = $validName;
 		}
 	}
-//	error_log( "valid names: " . var_export( $validNames, true ) );
-// above commented out to keep valid names out of the logs
+	//error_log( "US_GetValidNames(): valid names: " . var_export( $validNames, true ) );
+	// above commented out to keep valid names out of the logs
 } // end of US_GetValidNames()
 
 
@@ -870,8 +884,14 @@ function US_SendEmail( $to, $from, $subject, $email ) {
 **	$pretag - a string combining the passed parameters that uniquely represents a 
 **		saved uploaded file. It's used to name the uploaded file.
 **
+** NOTE: 27OCT2024: Since this $pretag is used as part of a filename and this filename
+**	is used in a rename() command we MUST NOT have any '/'s in the simple file name as
+**	this confuses rename() which then thinks it's a directory path. No obvious way to get
+**	around this (the -T option of command line 'mv' doesn't work!). So, we'll convert all '/'s
+**	in the $eventName into underscores (_).
 */
 function US_ComputeSavedFilePretag( $unique, $cat, $eventName ) {
+		$eventName = str_replace( "/", "_", $eventName );
 		$pretag = $unique . "-" . $cat . "-" . $eventName . "=";
 		return $pretag;
 

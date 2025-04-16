@@ -313,10 +313,23 @@ function DrawRaces( array $OWProps, $deleteButton ) {
 		if( $existingFileName != "" ) {
 			$details = "&nbsp;&nbsp;&nbsp; $existingFileName was uploaded on $existingFileDate";
 		}
+//		<input style="margin-bottom: 10px; margin-left: 40px" type="radio" name="eventNum" value=<?php
+
+
+		// special case: no details yet for this one?
+		$nodetails = "";
+		$disabled = "";
+		if( $data['distance'] == 0 ) {
+			$nodetails = " (no details available - this event is disabled for now.)";
+			$disabled = " disabled ";
+		}
+		$label .= " " . $nodetails . " ";
 		?>
 		<label>
-		<input style="margin-bottom: 10px; margin-left: 40px" type="radio" name="eventNum" value=<?php
-			print "'$count' >$label</label> $details<br>";
+		<input <?php print $disabled; ?>
+			style="margin-bottom: 10px; margin-left: 40px" type="radio" name="eventNum" value=<?php
+			print "'$count' >$label
+		</label> $details<br>";
 		$count++;
 	}
 

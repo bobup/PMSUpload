@@ -596,6 +596,9 @@ function ValidateDroppedFileName( $eventNum, $OWProps, $convertedFileName, $keyw
  *	$sourceDir - the tmp directory containing the file. Ends with a '/'
  *	$fileName - the simple file name of the file to be moved.
  *	$destinationDir - the archive directory.  Ends with a '/'
+ *	$OWProps - an array containing the list of events of which we're interested and info 
+ *		about each event.
+ *	$eventNum - an index into $OWProps of the event whose results are described by the passed $fileName.
  *
  * RETURNED:
  *	$status - an error string if we have a problem, or an empty string if all is OK.
@@ -624,6 +627,13 @@ function ArchiveUploadedFile( $sourceDir, $fileName, $destinationDir, $OWProps, 
 			$status = " (oops...Unable to rename '$fileName' to '$fullNewName')";
 		}
 	}
+	
+	if( $status == "" ) {
+		// still all OK...make this file part of the OW points calculations
+		
+		
+	}
+	
 	return $status;
 } // end of ArchiveUploadedFile()
 

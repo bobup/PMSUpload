@@ -212,7 +212,7 @@ rm -f $TEMP_FILE
 NUM_ERRORS=`grep -c '! ERROR' $VALIDATE_LOG`
 NUM_WARNINGS=`grep -c '! WARNING' $VALIDATE_LOG`
 if [ $NUM_ERRORS -gt 0 ] ; then
-    ERROR_STRINGS=`grep '! ERROR' $VALIDATE_LOG`
+	ERROR_STRINGS=`$SCRIPT_DIR/GetErrorStringsFromLog.pl E $VALIDATE_LOG`
     echo "$NUM_ERRORS errors discovered - RSIND file not installed!"
     echo "[[[$DROP_MESSAGE $ERROR_STRINGS]]]"
     echo "(((See $VALIDATE_LOG for more details)))"
@@ -222,7 +222,8 @@ fi
 NUM_ROWS_IN_NEW_RSIND_FILE=`wc -l <"$FULL_RSIND_FILE_NAME"`
 EXIT_STATUS=0
 if [ $NUM_WARNINGS -gt 0 ] ; then
-    WARNING_STRINGS=`grep '! WARNING' $VALIDATE_LOG`
+#    WARNING_STRINGS=`grep '! WARNING' $VALIDATE_LOG`
+    WARNING_STRINGS=`$SCRIPT_DIR/GetErrorStringsFromLog.pl W $VALIDATE_LOG`
     USER_MESSAGE="$USER_MESSAGE $NUM_WARNINGS warnings discovered"
     HIDDEN_MESSAGE="(((See $VALIDATE_LOG for more details)))"
 fi
