@@ -40,11 +40,11 @@ if( $isValidKey > 0 ) {
 			error_log( "key too old!" );
 		}
 		US_ExpiredKey( $uploadType, $scriptName );
-		exit;
+		ExitOW();
 	} else {
 		// invalid key (probably missing)
 		US_InvalidRequest( $obUserName, "", $UserName, $uploadType, $scriptName, 1 );
-		exit;
+		ExitOW();
 	}
 }
 
@@ -149,7 +149,7 @@ if( isset($_FILES['files']) ) {
 					 "(only '$elements' allowed) - upload aborted!" );
 			}
 			fwrite( $logHandle, "File rejected: invalid extension.\n" );
-			exit;
+			ExitOW();
 		}
 		
 		// Next, do a sanity check on the file name to prevent uploading the results for one event as
@@ -184,7 +184,7 @@ if( isset($_FILES['files']) ) {
 				"To correct this please upload the correct file OR " .
 				"rename your file to be more descriptive of the event.") );
 			fwrite( $logHandle, "File rejected: file name ($originalFileName) not consistent with '$selectedEventName'.\n" );
-			exit;
+			ExitOW();
 		}
 		
 		// Next, move the uploaded file from the temp location to the location we really want to use:
@@ -192,7 +192,7 @@ if( isset($_FILES['files']) ) {
 		if( $message != "" ) {
 			// failed to create necessary directory
 			SetError( $message );
-			exit;
+			ExitOW();
 		}
 
 		if( ! is_uploaded_file( $_FILES['files']['tmp_name'][0] ) ) {
@@ -201,7 +201,7 @@ if( isset($_FILES['files']) ) {
 			error_log( "The attempted \"UPLOADED\" file was this: " . var_export( $_FILES, true ) );
 			// pretend it's our fault and that we're not hip to this mischevious user...
 			SetError( "Internal Error: 4093. Upload failed." );
-			exit;
+			ExitOW();
 		}
 		
 		if(move_uploaded_file($_FILES['files']['tmp_name'][0], $destinationDirTmp.$convertedFileName)) {
@@ -213,11 +213,11 @@ if( isset($_FILES['files']) ) {
 			$count = count( $arrOfLines );
 			if( $status > 0 ) {
 				SetError( $arrOfLines );
-				exit;
+				ExitOW();
 			} elseif( $status < 0 ) {
 				// something went wrong with the exec or some other internal error
 				SetError( $arrOfLines );
-				exit;
+				ExitOW();
 			} else {
 				// SUCCESS!! archive this newly uploaded OW result file and make it available for points calculations
 				$message = US_CreateDirIfNecessary( $destinationDirArchive);
@@ -234,11 +234,11 @@ if( isset($_FILES['files']) ) {
 						SetSuccess( $arrOfLines );
 					}
 				}
-				exit;
+				ExitOW();
 			}
 		} else {
 			SetError( "The file " . $_FILES['files']['tmp_name'][0] . " failed to upload!" );
-			exit;
+			ExitOW();
 		}
 	} else {
 		// The file failed to be uploaded:
@@ -247,7 +247,7 @@ if( isset($_FILES['files']) ) {
 		}
 		$message = US_CodeToMessage( $_FILES['files']['error'][0] );
 		SetError( $message );
-		exit;
+		ExitOW();
 	}
 
 } // end of isset($_FILES['files'... 
@@ -270,7 +270,7 @@ elseif( !empty( $_POST ) ) {
 		if( DEBUG ) {
 			error_log( "send an email to '$to' re '$subject'" );
 		}
-		exit;
+		ExitOW();
 	}
 	fwrite( $logHandle, "OW.php: got POSTed values:\n" );
 	fwrite( $logHandle, var_export( $_POST, true ) );
@@ -323,13 +323,13 @@ elseif( !empty( $_POST ) ) {
 		}
 //		$_SESSION['deleteButton'] = $deleteButton;
 		include "OwStart.php";
-		exit;
+		ExitOW();
 	} elseif( isset( $uploadAgainButton ) ) {
 		include "OwStart.php";
-		exit;
+		ExitOW();
 	} elseif( isset( $uploadAnotherButton ) ) {
 		include "OwStart.php";
-		exit;
+		ExitOW();
 	} elseif( isset( $uploadFixedResultButton ) ) {
 		// we just fall thru to generate the drop window for the appropriate eventNum already
 		// collected above...
@@ -346,7 +346,7 @@ else {
 	
 	US_GeneratePageHead( "OW" );
 	NoResultFileSelected();
-	exit();
+	ExitOW()();
 }
 	
 	
@@ -356,7 +356,7 @@ else {
 // in these cases just show the Drop window and let the user give us a file:
 US_GeneratePageHead( "OW" );
 GenerateOWDropZone( $UsersFullName, $eventNum, $OWProps );
-exit;
+ExitOW();
 
 
 
@@ -723,6 +723,19 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 				if( DEBUG > 2 ) {
 					error_log( "ValidateOWFile(): successfully mkdir $OWPointsTmpDirName\n" );
 				}
+				$dirResult = opendir( $OWPointsTmpDirName );
+
+				if( $dirResult == false ) {
+					if( DEBUG > 2 ) {
+						error_log( "ValidateOWFile(): failed to opendir #2 $OWPointsTmpDirName\n" );
+					}
+					$status = -1;
+					$message[0] = "Internal error - unable to open the temp directory '$OWPointsTmpDirName' #2 - upload aborted!";
+				} else {
+					if( DEBUG > 2 ) {
+						error_log( "ValidateOWFile(): successfully opendir #2 $OWPointsTmpDirName\n" );
+					}
+				}
 			}
 		}
 	}
@@ -738,17 +751,22 @@ function ValidateOWFile( $destinationDir, $fileName, $OWProps, $eventNum ) {
 	}
 	// we're done with our temp directory....for now:
 	closedir( $dirResult );
-	
 	if( $fp ) {
 		$cat = $OWProps[$eventNum]["cat"];
 		$date = $OWProps[$eventNum]["date"];
 		$distance = $OWProps[$eventNum]["distance"];
 		$name = $OWProps[$eventNum]["name"];
 		$unique = $OWProps[$eventNum]["unique"];
+		$onlyLine = $fullFileName . "  ->  $cat  ->  $date  ->  $distance  ->  $name  ->  $unique\n";
+		if( DEBUG > 2 ) {
+			error_log( "ValidateOWFile(): onlyLine (written to $OWPointsTmpCalendarEntry)='$onlyLine'\n" );
+		}
 		$numBytesWritten = fwrite( $fp, $fullFileName . "  ->  $cat  ->  $date  ->  $distance  ->  $name  ->  $unique\n" );
 		if( ! $numBytesWritten ) {
 			$status = -1;
 			$message[0] = "Internal error - writing to $OWPointsTmpCalendarEntry failed - upload aborted!";
+		} elseif( DEBUG > 2 ) {
+			error_log( "ValidateOWFile(): $numBytesWritten bytes written to $OWPointsTmpCalendarEntry\n" );
 		}
 		fclose( $fp );
 	}
@@ -850,12 +868,12 @@ function FullRemoveDir( $dirName ) {
 				$result = unlink( "$fullFile" );
 			}
 		}
-		if( !result ) {
+		if( !$result ) {
 			error_log( "FullRemoveDir(): Failed to remove $fullFile." );
 			break;
 		}
-	} // end of foreach( ...
-	if( result ) {
+	} // end of foreach( ...	
+	if( $result ) {
 		$result = rmdir( $dirName );
 	}
 	if( $result ) {
@@ -1691,12 +1709,19 @@ function UpdateScreenWithStatus( fullMsg, startMsg, status, filename ) {
 	<?php
 	// Done drawing the drop zone for the user - let them decide what to do:
 	if( DEBUG ) {
-		error_log( "EXIT when at end of GenerateOWDropZone" );
+		error_log( "EXIT when at end of GenerateOWDropZone\n" );
 	}
-	exit;
+	ExitOW();
 
 
 } // end of GenerateOWDropZone()
 
+
+function ExitOW() {
+	if( DEBUG > 2 ) {
+		error_log( "EXIT OW.php\n" );
+	}
+	exit();
+} # end of ExitOW()
 
 ?>

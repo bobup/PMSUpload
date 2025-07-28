@@ -19,8 +19,11 @@ require_once $localProps[0];		// UploadSupport.php, set DEBUG
 
 $scriptName = "OwStart.php";
 if( DEBUG ) {
-	error_log( "Entered $scriptName\n" );
+	error_log( "Entered $scriptName, yearBeingProcessed='$yearBeingProcessed'\n" );
 }
+
+
+
 
 // Although the normal path this this script will have already checked that the user is
 // valid, we're going to check again just in case someone invoked this script directly.
@@ -52,6 +55,7 @@ if( $isValidKey > 0 ) {
 // initialization...
 // get full path name to the OW properties file:
 $OWPropsFullPath = $localProps[3];
+
 // the above full path name doesn't have the correct year in it yet...
 $OWPropsFullPath = str_replace( "{CurrentYear}", $yearBeingProcessed, $OWPropsFullPath );
 
@@ -103,11 +107,10 @@ exit;
 **	$OWProps - an array of arrays. See comments near the call.
 **
 */
-define( "WAITING_FOR_CALENDAR", 1 );
-define( "PROCESSING_CALENDAR", 2 );
-define( "PROCESSING_SKIP", 3 );
-
 function ReadAndStoreCalendar( $OWPropsFullPath, array &$OWProps ) {
+	define( "PROCESSING_CALENDAR", 2 );
+	define( "PROCESSING_SKIP", 3 );
+	define( "WAITING_FOR_CALENDAR", 1 );
 	$props = fopen( $OWPropsFullPath, "r" ) or die ("Unable to open " . $OWPropsFullPath . " - ABORT!" );
 	$state = WAITING_FOR_CALENDAR;
 	$previousState = 0;
