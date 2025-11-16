@@ -7,11 +7,12 @@
 #	$1:  the directory containing the newly uploaded RSIND file
 #   $2:  the (simple) name of the newly uploaded RSIND file
 #   $3:  the year being processed
-#	$4:  (optional) if supplied this tells the script to do everything it would normally do
+#	$4:  debug value (see UploadSupport.php, the value of "DEBUG" define)
+#	$5:  (optional) if supplied this tells the script to do everything it would normally do
 #		EXCEPT the actual copy. Useful when debugging.
 #
 # Exit Status:
-#   0 - file uploaded and copied to destination directories correctly, or in the case where $4
+#   0 - file uploaded and copied to destination directories correctly, or in the case where $5
 #		is supplied, this means no problems found.
 #   1 - there was a problem and the file was NOT uploaded to any destination directory
 #   2 - the file already existed in at least one of the destination directories so it was not
@@ -91,8 +92,11 @@ fi
     
 }
 
+# define our debug value:
+DEBUG="$4"
+
 # if all looks good do we really copy the file to the appropriate destination directories?
-NOCOPY="$4"		# If non-empty we will NOT actually do the copy.
+NOCOPY="$5"		# If non-empty we will NOT actually do the copy.
 
 # did we get the RSIND file name and year?
 RSIND_FILE_NAME="$2"        # simple name of newly uploaded RSIND file - we may change it below
@@ -156,7 +160,7 @@ fi
 # year's RSIND file earlier than Nov 1.  We'll detect it by comparing the size of the newly uploaded RSIND 
 # file with the previous RSIND file, and if it's "significantly" smaller we'll assume we have next 
 # year's RSIND file.  The "previous" RSIND file will be taken from the AGSOTY files.
-if [ $TODAY_MD -gt $OCT15_MD ] ; then
+if [[ $TODAY_MD -gt $OCT15_MD ]] ; then
     # This could be an RSIND file for NEXT year only!
     if [ $STATUS_GetMostRecentVersion -eq 0 ] && \
         [ $NUM_ROWS_IN_NEW_RSIND_FILE -lt $((EXISTING_RSIND_SIZE - LINE_DIFF_TRIGGER )) ] ; then
@@ -172,7 +176,7 @@ if [ $TODAY_MD -gt $OCT15_MD ] ; then
         RSIND_FILE_NAME=Merged_$RSIND_FILE_NAME
         MERGED_FULL_RSIND_FILE_NAME=$UPLOADED_RSIND_DIR/$RSIND_FILE_NAME
         $MERGE_PROG "$DESTDIR/$EXISTING_RSIND_FILE" $FULL_RSIND_FILE_NAME $YEAR_BEING_PROCESSED \
-            > $MERGED_FULL_RSIND_FILE_NAME
+            "$DEBUG" > $MERGED_FULL_RSIND_FILE_NAME
         # the "new" uploaded RSIND file is now named "Merged_xxx", where "xxx" is the name of the newly
         # uploaded RSIND file supplied by the user.
         FULL_RSIND_FILE_NAME=$MERGED_FULL_RSIND_FILE_NAME
