@@ -24,11 +24,14 @@ if( DEBUG ) {
 }
 
 
-// $NOCOPY is set to non-empty if we don't really want to copy RSIND files to the appropriate
+// $NOCOPY is set to "nocopy" if we don't really want to copy RSIND files to the appropriate
 // destination locations. This is useful during debugging. During normal operations we want
-// to set $NOCOPY to an empty string.
+// to set $NOCOPY to an empty string. Otherwise it's set to "copy"
 $NOCOPY = NO_COPY_RSIND;
 
+// $NOMERGE is set to "nomerge" if we are NOT supposed to merge new RSIND file with previous one
+// (usually done near the end of the year), "merge" otherwise.
+$NOMERGE = NO_RSIND_MERGE;
 
 // initialization...
 $yearBeingProcessed = date("Y");		// the year in which we are running
@@ -321,6 +324,7 @@ function ValidateRSINDFile( $destinationDir, $fileName ) {
 	global $yearBeingProcessed;
 	global $localProps;
 	global $NOCOPY;
+	global $NOMERGE;
 	$message = array();
 	$status = 0;  // assume all ok
 	$fullFileName = "$destinationDir/$fileName";	// may be partial path relative to CWD
@@ -372,14 +376,15 @@ function ValidateRSINDFile( $destinationDir, $fileName ) {
 		if( DEBUG ) {
 			error_log( "ValidateRSINDFile(): about to exec($localProps[1]" .
 			 " $destinationDir '$fileName' $yearBeingProcessed " . DEBUG . 
-			 " $NOCOPY 2>&1, $message, $status)" );
+			 " $NOCOPY $NOMERGE 2>&1, $message, $status)" );
 		}
 		exec( $localProps[1] .
 			" $destinationDir '$fileName' $yearBeingProcessed " . DEBUG .
-			" $NOCOPY 2>&1", $message, $status );
+			" $NOCOPY $NOMERGE 2>&1", $message, $status );
 
 		if( DEBUG ) {
-			error_log( "exec done for the year $yearBeingProcessed, exitStatus=$status, NOCOPY=$NOCOPY");
+			error_log( "exec done for the year $yearBeingProcessed, exitStatus=$status, " .
+				"NOCOPY=$NOCOPY, NOMERGE=$NOMERGE");
 			error_log( "line 0: '$message[0]'");
 			error_log( "line 1: '$message[1]'");
 			error_log( "line 2: '$message[2]'");

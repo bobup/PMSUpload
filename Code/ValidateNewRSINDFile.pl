@@ -184,19 +184,30 @@ my $rowRef = {};
 # year part of a date contains only 2 digits:
 PMSStruct::GetMacrosRef()->{"YearBeingProcessed"} = $yearBeingProcessed;
 
+# count the number of binary and non-binary genders
+my $numBinaryGenders = 0;
+my $numNonBinaryGenders = 0;
 for( $rowNum = 2; $rowNum <= $numRowsInSpreadsheet; $rowNum++ ) {
 	if( ($rowNum % 1000) == 0 ) {
 		print "...working on row $rowNum...\n";
 	}
 
 	PMS_ImportPMSData::GetRSINDRow( $rowRef, $rowNum, $g_sheet1_ref, $yearBeingProcessed, $FullRSINDFileName );
-
+	my $gender = $rowRef->{'gender'};
+	if( PMSUtil::IsBinaryGender( $gender ) ) {
+		$numBinaryGenders++;
+	} else {
+		$numNonBinaryGenders++;
+	}
 }
 $rowNum--;
 PMSLogging::PrintLog( "", "", "$appProgName: analysis of $rowNum rows from \n" .
 	"    $FullRSINDFileName\n" .
 	"    complete." , 1 );
 
+# this is a hack to get the following information available to the Upload page:
+PMSLogging::DumpWarning( "", "", "ValidateNewRSINDFile.pl: There were $numBinaryGenders " .
+	"declared genders, $numNonBinaryGenders Declined-to-State genders.", "" );
 
 
 

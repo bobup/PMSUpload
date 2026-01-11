@@ -7,15 +7,24 @@
 
 // Copyright (c) 2019-2022 Bob Upshaw.  This software is covered under the Open Source MIT License
 
+//!!!!!!!!
 define( "DEBUG", "0" );		// 0=no debugging, >0 turn on debugging
+//define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribution of the RSIND
+//!!!!!!!!
 define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribution of the RSIND
-//define( "DEBUG_RSIND", "1" );	// used only to enable/disable emails and distribution of the RSIND
 								// file to the various destinations. 
 								// 0 = enable emails to 
 								// 	rsind_uploads@pacificmasters.org and distribute the RSIND file.
 								// 1 = email to single person (see RSIND_EMAIL_RECIPIENTS) and 
 								// 	DON'T distribute the RSIND file.
 								//	Also, allow duplicate RSIND file uploads.
+//!!!!!!!!
+define( "NO_RSIND_MERGE", "merge" );	// Affects code in TestInstallRSIND.bash. 
+								// merge = merge RSIND files near end of year.
+								// nomerge = don't merge, use only new RSIND file. For this you probably
+								//  want DEBUG_RSIND set to 1 so NO_COPY_RSIND is set to "nocopy"
+
+
 define( "DEBUG_OW", "0" );		// used only to enable/disable emails. 0 = enable emails 
 								// to ow_uploads@pacificmasters.org
 								// 1 = email to single person (see OW_EMAIL_RECIPIENTS)
@@ -48,7 +57,7 @@ if( DEBUG_RSIND ) {
 } else {
 	// RSIND_EMAIL_RECIPIENTS is the recipient of all emails related to RSIND uploads:
 	define( "RSIND_EMAIL_RECIPIENTS", "rsind_uploads@pacificmasters.org" );
-	define( "NO_COPY_RSIND", "" );	// see above
+	define( "NO_COPY_RSIND", "copy" );	// see above
 }
 if( DEBUG_OW ) {
 	define( "OW_EMAIL_RECIPIENTS", "bobup@acm.org" );

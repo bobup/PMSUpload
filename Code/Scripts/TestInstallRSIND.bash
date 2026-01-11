@@ -8,8 +8,10 @@
 #   $2:  the (simple) name of the newly uploaded RSIND file
 #   $3:  the year being processed
 #	$4:  debug value (see UploadSupport.php, the value of "DEBUG" define)
-#	$5:  (optional) if supplied this tells the script to do everything it would normally do
+#	$5:  if supplied as "nocopy" this tells the script to do everything it would normally do
 #		EXCEPT the actual copy. Useful when debugging.
+#	$6:	 if supplied as "merge" then merge new RSIND file with currently installed one (usually done
+#		near the end of the year.) "nomerge" means don't do the merge.
 #
 # Exit Status:
 #   0 - file uploaded and copied to destination directories correctly, or in the case where $5
@@ -96,7 +98,9 @@ fi
 DEBUG="$4"
 
 # if all looks good do we really copy the file to the appropriate destination directories?
-NOCOPY="$5"		# If non-empty we will NOT actually do the copy.
+NOCOPY="$5"		# If "nocopy" we will NOT actually do the copy.
+
+NOMERGE="$6"	# if "merge" and near the end of the year then do the merge
 
 # did we get the RSIND file name and year?
 RSIND_FILE_NAME="$2"        # simple name of newly uploaded RSIND file - we may change it below
@@ -160,6 +164,7 @@ fi
 # year's RSIND file earlier than Nov 1.  We'll detect it by comparing the size of the newly uploaded RSIND 
 # file with the previous RSIND file, and if it's "significantly" smaller we'll assume we have next 
 # year's RSIND file.  The "previous" RSIND file will be taken from the AGSOTY files.
+if [[ $NOMERGE = "merge" ]] ; then
 if [[ $TODAY_MD -gt $OCT15_MD ]] ; then
     # This could be an RSIND file for NEXT year only!
     if [ $STATUS_GetMostRecentVersion -eq 0 ] && \
@@ -169,7 +174,7 @@ if [[ $TODAY_MD -gt $OCT15_MD ]] ; then
         GOT_NEXT_YEARS_RSIND=1
         MERGE_SIMPLE_NAME=MergeRSINDFiles
         MERGE_PROG=$SCRIPT_DIR/../$MERGE_SIMPLE_NAME.pl
-		echo >>$LOG_FILE "MERGE_PROG for RSIND file = '$MERGE_PROG'";
+		echo >>$q "MERGE_PROG for RSIND file = '$MERGE_PROG'";
 
         # Since we are constructing a different uploaded RSIND file that is different from the one the user uploaded
         # we are going to change its name:
@@ -185,6 +190,7 @@ if [[ $TODAY_MD -gt $OCT15_MD ]] ; then
     fi
 # else it's pretty early in the year - assume the newly uploaded RSIND file is the one we want
 fi
+fi		# end of NOMERGE
 
 ###!!!  the above fails if: on oct 1 we upload full rsind file. Then
 ###     on oct 16 we upload next year's so decide to merge,
@@ -244,7 +250,7 @@ if [ -e "$FULL_DEST_FILE" ] ; then
     DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE already exists for AGSOTY - not copied again."
     HIDDEN_MESSAGE="$HIDDEN_MESSAGE; ((('cp $FULL_RSIND_FILE_NAME $DESTDIR' wasn't tried because file already exists))); "
     EXIT_STATUS=2
-elif [ "$NOCOPY" != "" ] ; then		 # unless NOCOPY
+elif [ "$NOCOPY" = "nocopy" ] ; then		 # unless NOCOPY
     USER_MESSAGE="$USER_MESSAGE; No actual copy performed for AGSOTY"
     DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE looks good but, as requested, it was not copied."
     HIDDEN_MESSAGE="$HIDDEN_MESSAGE; (((The passed NOCOPY was '$NOCOPY'))); "
@@ -330,7 +336,7 @@ if [ $TODAY_MD -lt $OCT15_MD ] && [ $GOT_NEXT_YEARS_RSIND == 0 ] ; then
         if [ $EXIT_STATUS = 0 ] ; then
             EXIT_STATUS=2
         fi
-	elif [ "$NOCOPY" != "" ] ; then		 # unless NOCOPY
+	elif [ "$NOCOPY" != "nocopy" ] ; then		 # unless NOCOPY
 		USER_MESSAGE="$USER_MESSAGE; No actual copy performed for OW"
 		DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE looks good but, as requested, it was not copied."
 		HIDDEN_MESSAGE="$HIDDEN_MESSAGE; (((The passed NOCOPY was '$NOCOPY'))); "
