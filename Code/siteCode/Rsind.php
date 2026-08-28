@@ -26,7 +26,7 @@ if( DEBUG ) {
 
 // $NOCOPY is set to "nocopy" if we don't really want to copy RSIND files to the appropriate
 // destination locations. This is useful during debugging. During normal operations we want
-// to set $NOCOPY to an empty string. Otherwise it's set to "copy"
+// to set $NOCOPY to "copy" (actually, anything other than "nocopy".)
 $NOCOPY = NO_COPY_RSIND;
 
 // $NOMERGE is set to "nomerge" if we are NOT supposed to merge new RSIND file with previous one
@@ -46,7 +46,7 @@ $obUserName = $_SESSION['obUserName'];
 
 /// before validating the key let's see what we got:
 	if( DEBUG ) {
-		error_log( "Rsind.php: not sure about the key yet, but...:");
+		error_log( "$scriptName: not sure about the key yet, but...:");
 		error_log( "get is: " . var_export( $_GET, true ) );
 		error_log( "post is: " . var_export( $_POST, true ) );
 		error_log( "files is: " . var_export( $_FILES, true ) );
@@ -60,7 +60,7 @@ if( $isValidKey > 0 ) {
 	if( $isValidKey > 1 ) {
 		// key too old
 		if( DEBUG ) {
-			error_log( "key too old!" );
+			error_log( "$scriptName:key too old!" );
 		}
 		US_ExpiredKey( $uploadType, $scriptName );
 		if( DEBUG ) {
@@ -84,7 +84,7 @@ $destinationDirPartial = "../UploadedFiles/RSIND/";
 // Note:  the above directory is relative to the location of this script in the webserver tree.
 $destinationDir = realpath( $destinationDirPartial ) . "/";
 if( DEBUG ) {
-	error_log( "Upload destination (archive) directory is '$destinationDir'\n" );
+	error_log( "$scriptName:Upload destination (archive) directory is '$destinationDir'\n" );
 }
 
 // A list of permitted file extensions
@@ -93,7 +93,7 @@ $allowed = array('csv');		// this is all we currently accept for RSIND files
 
 
 if( DEBUG > 1 ) {
-	error_log( "rsind.php: ready to test FILES");
+	error_log( "$scriptName: ready to test FILES");
 }
 
 if( isset($_FILES['files']) ) {
@@ -111,7 +111,7 @@ if( isset($_FILES['files']) ) {
 	
 
 	if( DEBUG ) {
-		error_log( "Rsind.php: got files:");
+		error_log( "$scriptName: got files:");
 		error_log( "get is: " . var_export( $_GET, true ) );
 		error_log( "post is: " . var_export( $_POST, true ) );
 		error_log( "files is: " . var_export( $_FILES, true ) );
@@ -120,12 +120,12 @@ if( isset($_FILES['files']) ) {
 		} else {
 			$sameNames = "(NOT the same)";
 		}
-		error_log( "originalFileName='$originalFileName', convertedFileName='$convertedFileName' $sameNames");
+		error_log( "$scriptName:originalFileName='$originalFileName', convertedFileName='$convertedFileName' $sameNames");
 	}
 
 	if( $_FILES['files']['error'][0] === UPLOAD_ERR_OK ) {
 		if( DEBUG > 1 ) {
-			error_log( "Rsind.php: Uploading successfully done" );
+			error_log( "$scriptName: Uploading successfully done" );
 		}
 		//uploading successfully done
 		// First make sure it's a file type that we're expecting:
@@ -211,7 +211,7 @@ if( DEBUG ) {
 	} else {
 		// The file failed to be uploaded:
 		if( DEBUG > 1 ) {
-			error_log( "The file failed to be uploaded" );
+			error_log( "$scriptName: The file failed to be uploaded" );
 		}
 		$message = US_CodeToMessage( $_FILES['files']['error'][0] );
 		US_SetError( $message );
@@ -229,7 +229,7 @@ elseif( !empty( $_POST ) ) {
 	$email = $_POST['emailAck'];
 
 	if( DEBUG ) {
-		error_log( "No Files found:");
+		error_log( "$scriptName: No Files found:");
 		error_log( "get is: " . var_export( $_GET, true ) );
 		error_log( "post is: " . var_export( $_POST, true ) );
 		error_log( "files is: " . var_export( $_FILES, true ) );
@@ -241,7 +241,7 @@ elseif( !empty( $_POST ) ) {
 		$subject = $_POST['subject'];
 		US_SendEmail( $to, "RSIND", $subject, $email );
 		if( DEBUG ) {
-			error_log( "send an email to '$to' re '$subject'" );
+			error_log( "$scriptName: send an email to '$to' re '$subject'" );
 		}
 if( DEBUG ) {
 	error_log( "Exit $scriptName - see email sent above\n" );
@@ -374,7 +374,7 @@ function ValidateRSINDFile( $destinationDir, $fileName ) {
 	
 	if( $status == 0 ) {
 		if( DEBUG ) {
-			error_log( "ValidateRSINDFile(): about to exec($localProps[1]" .
+			error_log( "$scriptName: about to exec($localProps[1]" .
 			 " $destinationDir '$fileName' $yearBeingProcessed " . DEBUG . 
 			 " $NOCOPY $NOMERGE 2>&1, $message, $status)" );
 		}
@@ -383,7 +383,7 @@ function ValidateRSINDFile( $destinationDir, $fileName ) {
 			" $NOCOPY $NOMERGE 2>&1", $message, $status );
 
 		if( DEBUG ) {
-			error_log( "exec done for the year $yearBeingProcessed, exitStatus=$status, " .
+			error_log( "$scriptName: exec done for the year $yearBeingProcessed, exitStatus=$status, " .
 				"NOCOPY=$NOCOPY, NOMERGE=$NOMERGE");
 			error_log( "line 0: '$message[0]'");
 			error_log( "line 1: '$message[1]'");

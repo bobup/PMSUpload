@@ -52,9 +52,9 @@ SCRIPT_DIR=`pwd -P`
 echo >>$LOG_FILE "SCRIPT_DIR = '$SCRIPT_DIR'";
 
 # calculate today's date and a few other dates for this year:
-TODAY_MD=$(date +"%m%d")        # today's date in form MMDD, e.g. 0513 for May 13
+TODAY_MD=$(date +"%-m%d")        # today's date in form MMDD, e.g. 513 for May 13. NOTE: NO LEADING ZEROS!
 OCT15_MD="1015"                 # Oct 15 in above format
-JUN1_MD="0601"                  # June 1 in above format
+JUN1_MD="601"                  # June 1 in above format
 
 # USMS allows members to register for NEXT year starting Nov 1 of THIS year.  We care about this because
 # we want THIS year's AGSOTY and OW competitors to be registered for THIS year.  We will use NEXT year's registration
@@ -244,7 +244,7 @@ fi
 #####
 
 # If all ok copy the newly uploaded RSIND file to the appropriate AGSOTY directory:
-if [ -e "$FULL_DEST_FILE" ] ; then
+if [ -e "$FULL_DEST_FILE" ] && [ "$NOCOPY" != "nocopy" ]; then
     # huh?  somehow this file already exists at the destination - refuse to copy it again.
     USER_MESSAGE="$USER_MESSAGE; This file already exists for AGSOTY"
     DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE already exists for AGSOTY - not copied again."
@@ -328,7 +328,7 @@ if [ $TODAY_MD -lt $OCT15_MD ] && [ $GOT_NEXT_YEARS_RSIND == 0 ] ; then
     if [ $STATUS_GetMostRecentVersion -eq 0 ] ; then
         EXISTING_RSIND_SIZE=`wc -l <"$DESTDIR/$EXISTING_RSIND_FILE"`
     fi
-    if [ -e "$FULL_DEST_FILE" ] ; then
+	if [ -e "$FULL_DEST_FILE" ] && [ "$NOCOPY" != "nocopy" ]; then
         # huh?  somehow this file already exists at the destination - refuse to copy it again.
         USER_MESSAGE="$USER_MESSAGE; This file already exists for OW"
         DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE already exists for OW - not copied again."
@@ -336,7 +336,7 @@ if [ $TODAY_MD -lt $OCT15_MD ] && [ $GOT_NEXT_YEARS_RSIND == 0 ] ; then
         if [ $EXIT_STATUS = 0 ] ; then
             EXIT_STATUS=2
         fi
-	elif [ "$NOCOPY" != "nocopy" ] ; then		 # unless NOCOPY
+	elif [ "$NOCOPY" = "nocopy" ] ; then		 # unless NOCOPY
 		USER_MESSAGE="$USER_MESSAGE; No actual copy performed for OW"
 		DROP_MESSAGE="$DROP_MESSAGE <br>$FULL_DEST_FILE looks good but, as requested, it was not copied."
 		HIDDEN_MESSAGE="$HIDDEN_MESSAGE; (((The passed NOCOPY was '$NOCOPY'))); "

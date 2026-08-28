@@ -7,10 +7,10 @@
 
 // Copyright (c) 2019-2022 Bob Upshaw.  This software is covered under the Open Source MIT License
 
-//!!!!!!!!
+//#!!!!!!!!
 define( "DEBUG", "0" );		// 0=no debugging, >0 turn on debugging
 //define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribution of the RSIND
-//!!!!!!!!
+//#!!!!!!!!
 define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribution of the RSIND
 								// file to the various destinations. 
 								// 0 = enable emails to 
@@ -18,14 +18,14 @@ define( "DEBUG_RSIND", "0" );	// used only to enable/disable emails and distribu
 								// 1 = email to single person (see RSIND_EMAIL_RECIPIENTS) and 
 								// 	DON'T distribute the RSIND file.
 								//	Also, allow duplicate RSIND file uploads.
-//!!!!!!!!
+//#!!!!!!!!
 define( "NO_RSIND_MERGE", "merge" );	// Affects code in TestInstallRSIND.bash. 
 								// merge = merge RSIND files near end of year.
 								// nomerge = don't merge, use only new RSIND file. For this you probably
 								//  want DEBUG_RSIND set to 1 so NO_COPY_RSIND is set to "nocopy"
 
 
-define( "DEBUG_OW", "0" );		// used only to enable/disable emails. 0 = enable emails 
+define( "DEBUG_OW", "10" );		// used only to enable/disable emails. 0 = enable emails 
 								// to ow_uploads@pacificmasters.org
 								// 1 = email to single person (see OW_EMAIL_RECIPIENTS)
 define( "MAX_AGE_KEY", "50" );	// The max age of a user's session, in minutes.
@@ -53,7 +53,7 @@ if( DEBUG_RSIND ) {
 	define( "NO_COPY_RSIND", "nocopy" );	// NO_COPY_RSIND is set to non-empty if we don't 
 	// really want to copy RSIND files to the appropriate
 	// destination locations. This is useful during debugging. During normal operations we want
-	// to set NO_COPY_RSIND to an empty string.
+	// to set NO_COPY_RSIND to "copy" (actually, anything other than "nocopy").
 } else {
 	// RSIND_EMAIL_RECIPIENTS is the recipient of all emails related to RSIND uploads:
 	define( "RSIND_EMAIL_RECIPIENTS", "rsind_uploads@pacificmasters.org" );
@@ -851,8 +851,7 @@ function US_SendEmail( $to, $from, $subject, $email ) {
 	$headers = "From: $from Upload <uploads@pacificmasters.org>" . "\r\n" .
 		"Reply-To: $from Upload <uploads@pacificmasters.org>" . "\r\n" .
 		'X-Mailer: PHP/' . phpversion();
-	// if this email isn't going to one of the general "upload" mailboxes then we must be debugging...
-	if( strpos( $to, "upload" ) === false ) {
+	if( DEBUG > 0 ) {
 		$subject .= " (debug mode)";
 	}
 	if( DEBUG > 1 ) {

@@ -1,0 +1,68 @@
+
+
+- The "login page" (https://pacmdev.org/points/Upload/Upload.html) will ask for two things:
+	- what are you uploading?  Always select Open Water Results (and make sure the year
+		matches the season you are working with)
+	- your "User Name", which is the special word we've agreed upon for you, followed by
+		the two digits representing the day of the month (e.g. 03, or 22)
+- Once you "log in" by hitting the Submit User Name you should end up on the 
+	"Select the event" page, which is the page used to
+	tell the system the open water event for which you have results. Or, you'll get an
+	error if you didn't get your "User Name" right or the correct file type 
+	being uploaded.
+- ERRORS:  Most error messages are cryptic or even misleading on purpose. This is to 
+	diswade bots (and humans) from scanning through these pages. Security is fairly simple
+	(no encrypted passwords, etc.) but we really don't want anyone from possibly hacking
+	in and depositing a bogus OW result file, or a bogus PAC membership database. So, if
+	you get an error feel free to contact me if you don't know what is wrong.  
+- Your session will only last a fixed amount of time.  It can vary, but about 30 minutes. 
+	If it expires a rather cryptic message will send you back to the login page.
+- On the "Select the event" page, click on the event corresponding to the results, then 
+	click on the "Proceed to Download" button.
+- The "Upload a New OW File" will describe the event corresponding to the results you
+	are going to upload. If a previous successful upload has already been performed it
+	will tell you what it is. This is just informational. Regardless, you have two
+	options:
+	- If something isn't right (e.g. the results you have are for a different event) then
+		click on the "Upload New Results" button and you'll go back to the "Select the
+		event" page.
+	- If all is good then grap the file and drop it on the page. Notice that the page 
+		outline will turn from blue to red. It may take a long time (1-2 minutes or so), 
+		depending on the length of the result file.
+- If you end up on the "Upload Failed!" page then you'll get a description of the problem
+	and more explanation under the "Upload Status".  Some common errors:
+	- you gave it something other than a CSV file.  Sorry - only .csv are allowed.
+	- the name of the file implies results for a different event. This uses a heuristic
+		so therefore it may be wrong. Fix the name if necessary.
+	- you gave it the same file twice. It doesn't like that. Change the name.
+	- finally, there are just the typical screw-ups, like not following the required
+		format, swimmers in the wrong age group, swimmers in the wrong order, etc.
+		You just need to explain to the host the problems and let them fix it. The
+		goal is that they are the keepers of the correct results.
+			- note that some errors are just "!ERROR" and not necessarily fatal. For
+				example, if the results say a person's age is 26 but it's really 
+				27 then we can ignore that if there are no fatal errors, since fixing
+				this doesn't change their age group. Regardless, we'll still claim
+				the upload failed, but we may decide to use the file in computing 
+				points anyway.
+- After analyzing the problem(s) explained on the "Upload failed!" page you have these
+	options:
+	- fix the errors and hit the "Upload Repaired Results" button to try the fixed result
+		file. This is not recommended but you might do it so you can explain to the host
+		how to fix their results.
+	- give up on this result file and click on the "Upload New Results" button to take
+		you back to the "Select the event" page to try results for a different event.
+	- quit testing OW results and close the window.
+	Regardless of which option above you choose you can also send an email with the error
+		summary to "ow_upload@pacificmasters.org", or anyone else if you change the To: 
+		field of the email. This is a handy way to send the errors to the host, with
+		necessary editing if you like.
+ - If you end up on the "Upload Success!" then that means the file is probably good to
+ 	use for assigning OW points.  ("Probably" because other things can go wrong when we
+ 	do the actual point generation.) In this case you have two options:
+ 	- Click the "Delete These Results", which just means we won't save them. The file
+ 		you dropped on the page will remain untouched.
+ 	- Click the "Upload New Results" which will send you back to the "Select the event" 
+ 		page to upload another results file. The file that you just uploaded will be
+ 		kept (but, at this time, not used for anything other than historical backup.)
+	- quit testing OW results and close the window.

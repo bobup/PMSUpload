@@ -431,23 +431,40 @@ function GetKeysFromFileName( $convertedFileName, $OWProps, $eventNum ) {
 	$catFromFileName = "";
 	
 	// try to figure out what distance this file represents:
-	$pattern = "/((\d\.\d*)|(\d)|(\.\d))\s*mi/";
+//	$pattern = "/((\d\.\d*)|(\d)|(\.\d))\s*mi/";
+	// 9jul2026: allow a - or _ in place of a '.', e.g. 1.5 or 1_5 or 1-5:
+	$pattern = "/((\d+[\._\-]\d*)|(\d+)|(\.\d+))\s*mi/";
 	$match = preg_match( $pattern, $lowerFileName, $matches );
 	if( $match === 1 ) {
 		// we've found a distance in miles in the file name
 		$distFromFileName = $matches[1];
+		// replace non-decimal char (if any) with decimal char to look like a number
+		$distFromFileName = str_replace( array('-', '_'), array('.','.'), $distFromFileName );
 	} elseif( $match === false ) {
 		// we got an error - log it
 		error_log( "ERROR: GetKeysFromFileName(): Pattern[1] '$pattern' failed against '$lowerFileName'" );
 	}
 	if( $match === 0 ) {
 		// looking for distance in miles didn't work - try K
-		$pattern = "/(\d+\.?\d*)\s*k/";
+		//$pattern = "/(\d+\.?\d*)\s*k/";
+		// 9jul2026: allow a - or _ in place of a '.', e.g. 1.5 or 1_5 or 1-5:
+		$pattern = "/((\d+[\._\-]\d*)|(\d+)|(\.\d+))\s*k/";
 		$match = preg_match( $pattern, $lowerFileName, $matches );
+		if( DEBUG > 1 ) {
+			error_log( "GetKeysFromFileName(): match=" . $match  );
+			if( $match === 1 ) {
+				error_log( "...and match[1]='$matches[1]'" );
+			}
+		}
 		if( $match === 1 ) {
 			// we've found a distance in K in the file name
 			$distK = $matches[1];
+			// replace non-decimal char (if any) with decimal char to look like a number
+			$distK = str_replace( array('-', '_'), array('.','.'), $distK );
 			$distFromFileName = round( $distK / 1.609344, 3 );
+			if( DEBUG > 1 ) {
+				error_log( "GetKeysFromFileName(): distK=" . $distK . ", distFromFileName=" . $distFromFileName  );
+			}
 		} elseif( $match === false ) {
 			// we got an error - log it
 			error_log( "ERROR: GetKeysFromFileName(): Pattern[2] '$pattern' failed against '$lowerFileName'" );
@@ -475,6 +492,10 @@ function GetKeysFromFileName( $convertedFileName, $OWProps, $eventNum ) {
 	} elseif( $match === false ) {
 		// we got an error - log it
 		error_log( "ERROR: GetKeysFromFileName(): Pattern[4] '$pattern' failed against '$lowerFileName'" );
+	}
+	
+	if( DEBUG > 1 ) {
+		error_log( "GetKeysFromFileName(): return '$keywordFromFileEntry', '$distFromFileName', '$catFromFileName'" );
 	}
 
 	return array( $keywordFromFileEntry, $distFromFileName, $catFromFileName );

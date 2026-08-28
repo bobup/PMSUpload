@@ -1,0 +1,58 @@
+USMS new gender: "N"
+20Nov2025
+Notes by Bob Upshaw
+
+
+-- section 1 --
+
+On November 6, 2025 Chris Ottati sent me an email saying that she's unable to upload a new RSIND file because USMS has added a "third" gender ("N"). News to us. We didn't know what it meant but it was obvious this is related to a new policy titled "Interim USMS Eligibility Policy" which was loosely described here:
+    https://www.usms.org/volunteer-central/policy-and-governance/usms-policies/interim-eligibility-policy
+
+My initial interpretation:
+-According to section 4.a.i:
+	Members of the Male Sex, members who identify as male (i.e., transgender men), and members with 46 XY DSD are eligible for Recognition Programs in the men's category, regardless of their gender identity or gender expression.
+--- Unfortunately we don't have any way to know if a swimmer has 46XYDSD. So I'm just going to
+go with "any N with a result in a male event will get recognition."
+
+-According to section 4.b.i:
+	Members of the Female Sex are eligible for Recognition Programs in the women's category, regardless of their gender identity or gender expression.
+---I think this means that a "N" who is born a female gets to compete and be recognized 
+in a women's event. Unfortunately I don't know if an "N" is born male or female.
+-In addition, according to section 4.b.ii:
+	Members with 46 XY DSD whose gender identity or gender expression is female are eligible for Recognition Programs in the women's category if they can establish to USMS's comfortable satisfaction that their sex assigned at birth is female.
+--- Again, USMS isn't telling me if an N has established as stated above.
+--- So, if an N competes in a female event, since I don't know their gender at birth, I 
+will assume they do not qualify for recognition. I hope someone can explain how I can
+do this better.
+
+Needless to say I modified the Upload program to allow the third gender. I then started the process to make sense of it in both Open Water Points and AGSOTY.
+
+
+
+
+-- section 2 --
+
+
+The following paragraphs were copied directly from the registration page that I filled out
+on Nov 19, 2025. If any of the following changes I sure hope I find out about it.
+
+	Events include swim meets, virtual championships, and open water races. If you selected "I prefer not to say" for your sex, you cannot select a membership with an event license. Even though you can select an event license later in your My Account, we still suggest you select an event license now if you are unsure.
+
+--- I don't understand the above, mostly because I didn't see a definition of "event license". They can't possibly mean that someone who as selected "I prefer not to say" (an "N") can't compete, since that is a direct contradiction of section 1 above.
+
+
+Then further on in the registration there is the following two choices that I was asked to pick from. Note that the "competition category" is based on your Sex selection in the Contact Information section
+
+	I certify that my sex assigned at birth corresponds with the competition category selected OR I have selected the male competition category.
+	I DO NOT certify that my sex assigned at birth corresponds with the competition category selected. (A USMS representative will contact you to discuss participation and eligibility procedures.)
+
+
+Even further on there is the agreement that I had to "sign".
+
+	I acknowledge that the Interim USMS Policy on Participation in the Men’s and Women’s Competition Category and Eligibility for Official Recognition Programs allows members to participate in the competition category that reflects the sex with which they identify; however, members will not be included in Recognition Programs in the female competition category unless their sex assigned at birth is also female. Members participating in the male competition category will be eligible for recognition. Eligibility is subject to all other USMS rules and regulations.
+	
+--- The above agreement seems to simplify the rules significantly. Basically, anyone can compete as either sex. If someone competes as a male they get recognition. If someone born a female competes as a female they get recognition. Otherwise, the swimmer gets no recognition.
+
+Note that if a male wants to swim as a female and get recognition all they have to do is lie about their gender. I doubt that this would be caught in open water events. Pool events are a different matter, but still possible.  I won't catch that.
+
+

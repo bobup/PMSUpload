@@ -27,15 +27,44 @@
 			<input style="margin-left:60px" type="radio" name="uploadType" value="RSIND" checked>RSIND file
 			<br>
 			<input id="ow" style="margin-left:60px" type="radio" name="uploadType" value="OW">Open Water Results
-			<input type="text" id="year" name=year value="(2026)" readonly>
+			<input type="text" id="year" name=year value="(????)" readonly>
 			<br>&nbsp;<br>
 			<br>&nbsp;<br>
-		
-		
-		
 			Your name: <input type="text" name="UserName" />
 			<input type="submit" value="Submit User Name" />
 		</form>
+
+			<br>&nbsp;<br>
+			<br>&nbsp;<br>
+			<br>&nbsp;<br>
+			<br>&nbsp;<br>
+			<p>
+			NOTE on uploading OW Results: you must have the PMSOWPoints project initialized with
+			the correct yyyy-properties.txt and yyyy-properties_DB.txt files in the 
+			SourceData directory for the year 'yyyy'.
+
+
+
+
+		<script>
+			const year = new Date().getFullYear();
+			const params = new URLSearchParams(window.location.search);		  
+			queryYear = params.toString();
+			if( queryYear == "" ) {
+				document.getElementById("year").value = "(" + year + ")";
+			} else {
+				// remove trailing '='
+				queryYear = queryYear.replace( /.$/, "" );
+				// is the passed year exactly 4 digits?
+				if( /^\d{4}$/.test(queryYear) ) {
+					// YES!
+					document.getElementById("year").value = "(" + queryYear + ")";
+				} else {
+					// NO - use default year
+					document.getElementById("year").value = "(" + year + ")";
+				}
+			}
+		</script>
 
 	</body>
 </html>
